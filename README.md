@@ -21,6 +21,22 @@ subcommands:
     delete       delete an activity
 ```
 
-## Developing
+## Installation
+
+Through pip (VCS support):
+
+```
+pip install git+ssh://git@github.com/tlgs/qz.git
+```
+
+On Arch Linux:
+
+```
+git clone git@github.com:tlgs/qz.git
+cd qz
+makepkg -crsi
+```
+
+## Development
 
 - install and setup project with `pip install -e .[dev]` and `pre-commit install`
