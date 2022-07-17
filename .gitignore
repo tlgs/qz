@@ -3,8 +3,4 @@ __pycache__/
 .direnv/
 .envrc
 
-*.egg-info
-
-.coverage
-
 *.db

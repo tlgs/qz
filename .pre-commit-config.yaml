@@ -29,4 +29,3 @@ repos:
     hooks:
       - id: mypy
         args: ['--strict']
-        exclude: 'test_qz.py'

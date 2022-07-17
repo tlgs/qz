@@ -1,8 +1,3 @@
-[build-system]
-requires = ["hatchling", "hatch-vcs"]
-build-backend = "hatchling.build"
-
-
 [project]
 name = "qz"
 description = "Minimal time tracking CLI app"
@@ -18,9 +13,7 @@ scripts = { qz = "qz:main" }
 
 [project.optional-dependencies]
 dev = [
-  "coverage[toml]",
   "pre-commit",
-  "pytest",
 ]
 
 
@@ -29,9 +22,6 @@ version.source = "vcs"
 build.targets.wheel.only-include = ["qz.py"]
 
 
-[tool.coverage]
-run.branch = true
-run.command_line = "-m pytest -v"
-run.omit = ["test_qz.py"]
-
-report.show_missing = true
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
