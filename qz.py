@@ -1,5 +1,6 @@
 import argparse
 import importlib.metadata
+import itertools
 import os
 import re
 import sqlite3
@@ -307,28 +308,40 @@ def log_cmd(args: argparse.Namespace) -> None:
             params, predicates = zip(*tmp)
             rows = db_conn.execute(
                 "SELECT * FROM activities WHERE stop_dt IS NOT NULL AND "
-                + " AND ".join(predicates),
+                + " AND ".join(predicates)
+                + " ORDER BY start_dt DESC",
                 params,
             ).fetchall()
         else:
             rows = db_conn.execute(
-                "SELECT * FROM activities WHERE stop_dt IS NOT NULL"
+                textwrap.dedent(
+                    """\
+                    SELECT *
+                    FROM activities
+                    WHERE stop_dt IS NOT NULL
+                    ORDER BY start_dt DESC"""
+                )
             ).fetchall()
 
     if not rows:
         print("no recorded activities")
         return
 
-    for row in rows:
-        activity_uuid, message, project, start_dt, stop_dt = row
-        print(
-            activity_uuid if args.full_ids else activity_uuid[:8],
-            message or "{}",
-            project or "{}",
-            datetime.fromisoformat(start_dt).isoformat(sep=" ", timespec="minutes"),
-            datetime.fromisoformat(stop_dt).isoformat(sep=" ", timespec="minutes"),
-            sep=" | ",
-        )
+    for i, (k, g) in enumerate(
+        itertools.groupby(rows, key=lambda t: datetime.fromisoformat(t[3]).date())
+    ):
+        print(f"\n{k}" if i else k)
+        for row in g:
+            activity_uuid, message, project, start_dt, stop_dt = row
+
+            id_ = activity_uuid[:8]
+            message = message or "{}"
+            project = project or "{}"
+            start_time = datetime.fromisoformat(start_dt).time().isoformat("minutes")
+            stop_time = datetime.fromisoformat(stop_dt).time().isoformat("minutes")
+
+            activity_desc = f"{message} ⦻ {project}"
+            print(f"  {activity_desc:51.51} | {start_time} - {stop_time} | {id_}")
 
 
 def delete_cmd(args: argparse.Namespace) -> None:
@@ -363,7 +376,7 @@ class ArgumentParser(argparse.ArgumentParser):
     """
 
     def error(self, message: str) -> NoReturn:
-        pat = re.compile(r"argument <command>: invalid choice: '(\w+)'")
+        pat = re.compile(r"argument <command>: invalid choice: '(.+?)'")
         if m := pat.match(message):
             message = f"'{m.group(1)}' is not a qz command"
 
@@ -384,7 +397,7 @@ class SubcommandHelpFormatter(argparse.RawDescriptionHelpFormatter):
         return parts
 
 
-def main(args: list[str] | None = None) -> int:
+def main() -> int:
     parser = ArgumentParser(
         description=textwrap.dedent(
             """\
@@ -441,17 +454,14 @@ def main(args: list[str] | None = None) -> int:
         help="show activities older than a specific date",
         metavar="<datetime>",
     )
-    parser_log.add_argument(
-        "--full-ids", help="show full activity identifiers", action="store_true"
-    )
     parser_log.set_defaults(func=log_cmd)
 
     parser_delete = subparsers.add_parser("delete", help="delete an activity")
     parser_delete.add_argument("activity_uuid")
     parser_delete.set_defaults(func=delete_cmd)
 
-    namespace = parser.parse_args(args)
-    namespace.func(namespace)
+    args = parser.parse_args()
+    args.func(args)
 
     return 0
 
