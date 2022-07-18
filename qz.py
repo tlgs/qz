@@ -264,8 +264,14 @@ def stop_cmd(args: argparse.Namespace) -> None:
         db_conn.execute(
             textwrap.dedent(
                 """\
-                UPDATE activities SET message = ?, project = ?, stop_dt = ?
-                WHERE uuid = ?"""
+                UPDATE
+                  activities
+                SET
+                  message = ?,
+                  project = ?,
+                  stop_dt = ?
+                WHERE
+                  uuid = ?"""
             ),
             (message, project, datetime.now(), id_),
         )
@@ -306,25 +312,16 @@ def log_cmd(args: argparse.Namespace) -> None:
 
             tmp.append((dt, s))
 
+    # yikes
+    params, predicates = zip(*tmp) if tmp else ((), ())
+    select_stmt = (
+        "SELECT\n  *\nFROM\n  activities\nWHERE\n  stop_dt IS NOT NULL\n"
+        + ("\n".join("  AND " + p for p in predicates) + "\n" if predicates else "")
+        + "ORDER BY\n  start_dt DESC"
+    )
+
     with sqlite_db() as db_conn:
-        if tmp:
-            params, predicates = zip(*tmp)
-            rows = db_conn.execute(
-                "SELECT * FROM activities WHERE stop_dt IS NOT NULL AND "
-                + " AND ".join(predicates)
-                + " ORDER BY start_dt DESC",
-                params,
-            ).fetchall()
-        else:
-            rows = db_conn.execute(
-                textwrap.dedent(
-                    """\
-                    SELECT *
-                    FROM activities
-                    WHERE stop_dt IS NOT NULL
-                    ORDER BY start_dt DESC"""
-                )
-            ).fetchall()
+        rows = db_conn.execute(select_stmt, params).fetchall()
 
     if not rows:
         print("no recorded activities")
@@ -390,8 +387,8 @@ def import_cmd(args: argparse.Namespace) -> None:
                 )
 
                 id_ = str(uuid.uuid4())
-
                 to_insert.append((id_, message, project, start_dt, stop_dt))
+
     except FileNotFoundError:
         fatal(f"no such file `{args.file}`")
 
