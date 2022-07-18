@@ -307,17 +307,34 @@ def log_cmd(args: argparse.Namespace) -> None:
         if arg is not None:
             try:
                 dt = parse_user_datetime(arg)
+                tmp.append((dt, s))
             except ValueError as e:
                 fatal(e)
 
-            tmp.append((dt, s))
-
-    # yikes
+    # build SELECT statement
     params, predicates = zip(*tmp) if tmp else ((), ())
+
+    extra_predicates = ""
+    for p in predicates:
+        extra_predicates += "  AND " + p + "\n"
+
     select_stmt = (
-        "SELECT\n  *\nFROM\n  activities\nWHERE\n  stop_dt IS NOT NULL\n"
-        + ("\n".join("  AND " + p for p in predicates) + "\n" if predicates else "")
-        + "ORDER BY\n  start_dt DESC"
+        textwrap.dedent(
+            """\
+            SELECT
+              *
+            FROM
+              activities
+            WHERE
+              stop_dt IS NOT NULL
+            """
+        )
+        + extra_predicates
+        + textwrap.dedent(
+            """\
+            ORDER BY
+              start_dt DESC"""
+        )
     )
 
     with sqlite_db() as db_conn:
@@ -508,7 +525,7 @@ def main() -> int:
         help="specify tool",
         metavar="<tool>",
     )
-    parser_import.add_argument("file")
+    parser_import.add_argument("file", help="tool-specific data file")
     parser_import.set_defaults(func=import_cmd)
 
     args = parser.parse_args()
