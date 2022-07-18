@@ -182,8 +182,10 @@ def sqlite_db() -> Iterator[sqlite3.Connection]:
 
     try:
         yield conn
-    finally:
+
+        # if an exception occurs (e.g. `fatal`) the transaction is not committed
         conn.commit()
+    finally:
         conn.close()
 
 
@@ -328,10 +330,12 @@ def log_cmd(args: argparse.Namespace) -> None:
         print("no recorded activities")
         return
 
-    for i, (k, g) in enumerate(
-        itertools.groupby(rows, key=lambda t: datetime.fromisoformat(t[3]).date())
-    ):
-        print(f"\n{k}" if i else k)
+    def group_key(row: tuple[str, str, str, str, str]) -> date:
+        _, _, _, start_dt, _ = row
+        return datetime.fromisoformat(start_dt).date()
+
+    for i, (k, g) in enumerate(itertools.groupby(rows, key=group_key)):
+        print("\n" + str(k) if i else k)
         for row in g:
             activity_uuid, message, project, start_dt, stop_dt = row
 
@@ -342,7 +346,7 @@ def log_cmd(args: argparse.Namespace) -> None:
             stop_time = datetime.fromisoformat(stop_dt).time().isoformat("minutes")
 
             activity_desc = f"{message} ⦻ {project}"
-            print(f"  {activity_desc:51.51} | {start_time} - {stop_time} | {id_}")
+            print(f"  {activity_desc:53.53} | {start_time}-{stop_time} | {id_}")
 
 
 def delete_cmd(args: argparse.Namespace) -> None:
