@@ -299,6 +299,9 @@ def add_cmd(args: argparse.Namespace) -> None:
 
 
 def log_cmd(args: argparse.Namespace) -> None:
+    if args.n is not None and args.n < 0:
+        fatal("argument -n: should be a positive integer")
+
     tmp = []
     if args.project is not None:
         tmp.append((args.project, "project == ?"))
@@ -313,6 +316,8 @@ def log_cmd(args: argparse.Namespace) -> None:
 
     # build SELECT statement
     params, predicates = zip(*tmp) if tmp else ((), ())
+    if args.n is not None:
+        params = (*params, args.n)
 
     extra_predicates = ""
     for p in predicates:
@@ -335,6 +340,7 @@ def log_cmd(args: argparse.Namespace) -> None:
             ORDER BY
               start_dt DESC"""
         )
+        + ("\nLIMIT ?" if args.n is not None else "")
     )
 
     with sqlite_db() as db_conn:
@@ -348,9 +354,11 @@ def log_cmd(args: argparse.Namespace) -> None:
         _, _, _, start_dt, _ = row
         return datetime.fromisoformat(start_dt).date()
 
-    for i, (k, g) in enumerate(itertools.groupby(rows, key=group_key)):
+    for i, (k, g) in enumerate(
+        (k, list(g)) for k, g in itertools.groupby(rows, key=group_key)
+    ):
         print("\n" + str(k) if i else k)
-        for row in g:
+        for j, row in enumerate(g, start=1):
             activity_uuid, message, project, start_dt, stop_dt = row
 
             id_ = activity_uuid[:8]
@@ -358,9 +366,10 @@ def log_cmd(args: argparse.Namespace) -> None:
             project = project or "{}"
             start_time = datetime.fromisoformat(start_dt).time().isoformat("minutes")
             stop_time = datetime.fromisoformat(stop_dt).time().isoformat("minutes")
+            activity_desc = f"{message} ∈ {project}"
 
-            activity_desc = f"{message} ⦻ {project}"
-            print(f"  {activity_desc:53.53} | {start_time}-{stop_time} | {id_}")
+            ladder = "├" if j < len(g) else "└"
+            print(f"{ladder} {activity_desc:53.53} │ {start_time}-{stop_time} │ {id_}")
 
 
 def delete_cmd(args: argparse.Namespace) -> None:
@@ -389,6 +398,8 @@ def delete_cmd(args: argparse.Namespace) -> None:
 
 def import_cmd(args: argparse.Namespace) -> None:
     to_insert = []
+
+    # no need to parse args.tool as we're only supporting 'toggl'
     try:
         with open(args.file, newline="") as csv_file:
             for row in csv.DictReader(csv_file):
@@ -494,7 +505,12 @@ def main() -> int:
     parser_add.add_argument("-p", "--project", help="set project", metavar="<proj>")
     parser_add.set_defaults(func=add_cmd)
 
-    parser_log = subparsers.add_parser("log", help="show activity logs")
+    parser_log = subparsers.add_parser(
+        "log", usage="%(prog)s [<options>]", help="show activity logs"
+    )
+    parser_log.add_argument(
+        "-n", type=int, help="limit number of activities", metavar="<number>"
+    )
     parser_log.add_argument(
         "-p", "--project", help="filter by project", metavar="<proj>"
     )
