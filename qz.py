@@ -1,4 +1,5 @@
 import argparse
+import csv
 import importlib.metadata
 import itertools
 import os
@@ -345,7 +346,7 @@ def log_cmd(args: argparse.Namespace) -> None:
 
 
 def delete_cmd(args: argparse.Namespace) -> None:
-    if args.activity_uuid is not None and len(args.activity_uuid) < 4:
+    if len(args.activity_uuid) < 4:
         fatal(f"ambiguous uuid '{args.activity_uuid}'")
 
     with sqlite_db() as db_conn:
@@ -366,6 +367,41 @@ def delete_cmd(args: argparse.Namespace) -> None:
         db_conn.execute("DELETE FROM activities WHERE uuid = ?", (id_,))
 
     print(id_)
+
+
+def import_cmd(args: argparse.Namespace) -> None:
+    to_insert = []
+    try:
+        with open(args.file, newline="") as csv_file:
+            for row in csv.DictReader(csv_file):
+                message = row["Description"]
+                project = row["Project"]
+                start_dt = datetime.combine(
+                    date.fromisoformat(row["Start date"]),
+                    time.fromisoformat(row["Start time"]),
+                )
+                stop_dt = datetime.combine(
+                    date.fromisoformat(row["End date"]),
+                    time.fromisoformat(row["End time"]),
+                )
+
+                id_ = str(uuid.uuid4())
+
+                to_insert.append((id_, message, project, start_dt, stop_dt))
+    except FileNotFoundError:
+        fatal(f"no such file `{args.file}`")
+
+    with sqlite_db() as db_conn:
+        try:
+            db_conn.executemany(
+                "INSERT INTO activities VALUES (?, ?, ?, ?, ?)",
+                to_insert,
+            )
+        except sqlite3.IntegrityError as e:
+            fatal(e)
+
+    for id_, *_ in to_insert:
+        print(id_)
 
 
 class ArgumentParser(argparse.ArgumentParser):
@@ -459,6 +495,20 @@ def main() -> int:
     parser_delete = subparsers.add_parser("delete", help="delete an activity")
     parser_delete.add_argument("activity_uuid")
     parser_delete.set_defaults(func=delete_cmd)
+
+    parser_import = subparsers.add_parser(
+        "import", help="import activities from other tools"
+    )
+    parser_import.add_argument(
+        "-t",
+        "--tool",
+        choices=["toggl"],
+        required=True,
+        help="specify tool",
+        metavar="<tool>",
+    )
+    parser_import.add_argument("file")
+    parser_import.set_defaults(func=import_cmd)
 
     args = parser.parse_args()
     args.func(args)

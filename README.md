@@ -19,6 +19,7 @@ subcommands:
     add          add a parametrized activity
     log          show activity logs
     delete       delete an activity
+    import       import activities from other tools
 ```
 
 ## Installation
