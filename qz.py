@@ -103,9 +103,12 @@ def _init_db(f: Path) -> sqlite3.Connection:
             FROM
               activities
             WHERE
-              start_dt BETWEEN NEW.start_dt AND NEW.stop_dt
-              OR stop_dt BETWEEN NEW.start_dt AND NEW.stop_dt
-              OR NEW.start_dt BETWEEN start_dt AND stop_dt
+              NEW.uuid != OLD.uuid
+              AND (
+                start_dt BETWEEN NEW.start_dt AND NEW.stop_dt
+                OR stop_dt BETWEEN NEW.start_dt AND NEW.stop_dt
+                OR NEW.start_dt BETWEEN start_dt AND stop_dt
+              )
           )
           SELECT
             CASE
