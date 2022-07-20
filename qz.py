@@ -1,32 +1,33 @@
 import argparse
+import collections.abc
+import contextlib
 import csv
+import datetime
 import importlib.metadata
 import itertools
 import os
+import pathlib
 import re
 import sqlite3
 import sys
 import textwrap
+import time
+import typing
 import uuid
-from collections.abc import Iterator
-from contextlib import contextmanager
-from datetime import date, datetime, time, timedelta
-from pathlib import Path
-from typing import NoReturn
 
 __version__ = importlib.metadata.version("qz")
 
 
-def fatal(err: str | Exception) -> NoReturn:
+def fatal(err: str | Exception) -> typing.NoReturn:
     print(f"qz: {err}", file=sys.stderr)
     sys.exit(1)
 
 
-def _db_path() -> Path:
+def _db_path() -> pathlib.Path:
     env_path = os.getenv("QZ_DB", "")
 
     if env_path.strip():
-        return Path(env_path)
+        return pathlib.Path(env_path)
 
     # user data path
     if sys.platform != "linux":
@@ -34,14 +35,14 @@ def _db_path() -> Path:
 
     xdg_path = os.getenv("XDG_DATA_HOME", "")
     if xdg_path.strip():
-        base_path = Path(xdg_path)
+        base_path = pathlib.Path(xdg_path)
     else:
-        base_path = Path("~/.local/share").expanduser()
+        base_path = pathlib.Path("~/.local/share").expanduser()
 
     return base_path / "qz" / "store.db"
 
 
-def _init_db(f: Path) -> sqlite3.Connection:
+def _init_db(f: pathlib.Path) -> sqlite3.Connection:
     """Create database and return a connection.
 
     Partial expression index trick to constrain a single NULL:
@@ -160,8 +161,8 @@ def _init_db(f: Path) -> sqlite3.Connection:
     return conn
 
 
-@contextmanager
-def sqlite_db() -> Iterator[sqlite3.Connection]:
+@contextlib.contextmanager
+def sqlite_db() -> collections.abc.Iterator[sqlite3.Connection]:
     """Create and close an SQLite database connection.
 
     Using a hand-rolled context manager to handle database connections as
@@ -192,11 +193,13 @@ def sqlite_db() -> Iterator[sqlite3.Connection]:
         conn.close()
 
 
-def parse_user_datetime(s: str) -> datetime:
-    def just_time(s: str) -> datetime:
-        return datetime.combine(date.today(), time.fromisoformat(s))
+def parse_user_datetime(s: str) -> datetime.datetime:
+    def just_time(s: str) -> datetime.datetime:
+        return datetime.datetime.combine(
+            datetime.date.today(), datetime.time.fromisoformat(s)
+        )
 
-    for parsing_func in [datetime.fromisoformat, just_time]:
+    for parsing_func in [datetime.datetime.fromisoformat, just_time]:
         try:
             return parsing_func(s)
         except ValueError:
@@ -209,17 +212,34 @@ def root_cmd(args: argparse.Namespace) -> None:
     with sqlite_db() as db_conn:
         row = db_conn.execute("SELECT * FROM running_activity").fetchone()
 
-    if row:
-        _, message, project, start, _ = row
-
-        dt = datetime.fromisoformat(start)
-        elapsed = datetime.now() - dt
-        elapsed = elapsed - timedelta(microseconds=elapsed.microseconds)
-
-        print(f"tracking {message or '{}'} [{project or '{}'}] for {elapsed}")
-
-    else:
+    if not row:
         print("no tracking ongoing")
+        return
+
+    _, message, project, start_dt, _ = row
+    message = message or "{}"
+    project = project or "{}"
+    dt = datetime.datetime.fromisoformat(start_dt)
+
+    elapsed = datetime.datetime.now() - dt
+    elapsed -= datetime.timedelta(microseconds=elapsed.microseconds)
+
+    if args.persist:
+        # <https://notes.burke.libbey.me/ansi-escape-codes/>
+
+        try:
+            sys.stdout.write("\x1b[?25l")  # hide cursor
+            while True:
+                sys.stdout.write(f"tracking {message} [{project}] for {elapsed}\n")
+                time.sleep(1)
+                elapsed += datetime.timedelta(seconds=1)
+                sys.stdout.write("\x1b[A\r\x1b[K")
+
+        except KeyboardInterrupt:
+            sys.stdout.write("\x1b[?25h")  # show cursor
+            return
+
+    print(f"tracking {message} [{project}] for {elapsed}")
 
 
 def start_cmd(args: argparse.Namespace) -> None:
@@ -229,7 +249,7 @@ def start_cmd(args: argparse.Namespace) -> None:
         except ValueError as e:
             fatal(e)
     else:
-        at_dt = datetime.now()
+        at_dt = datetime.datetime.now()
 
     id_ = str(uuid.uuid4())
     with sqlite_db() as db_conn:
@@ -253,7 +273,7 @@ def stop_cmd(args: argparse.Namespace) -> None:
         if not row:
             fatal("no running activity")
 
-        id_, message, project, start, _ = row
+        id_, message, project, _, _ = row
 
         if args.discard:
             db_conn.execute("DELETE FROM activities WHERE uuid = ?", (id_,))
@@ -270,7 +290,7 @@ def stop_cmd(args: argparse.Namespace) -> None:
             except ValueError as e:
                 fatal(e)
         else:
-            at_dt = datetime.now()
+            at_dt = datetime.datetime.now()
 
         try:
             db_conn.execute(
@@ -364,9 +384,9 @@ def log_cmd(args: argparse.Namespace) -> None:
         print("no recorded activities")
         return
 
-    def group_key(row: tuple[str, str, str, str, str]) -> date:
+    def group_key(row: tuple[str, str, str, str, str]) -> datetime.date:
         _, _, _, start_dt, _ = row
-        return datetime.fromisoformat(start_dt).date()
+        return datetime.datetime.fromisoformat(start_dt).date()
 
     for i, (k, g) in enumerate(
         (k, list(g)) for k, g in itertools.groupby(rows, key=group_key)
@@ -378,8 +398,12 @@ def log_cmd(args: argparse.Namespace) -> None:
             id_ = activity_uuid[:8]
             message = message or "{}"
             project = project or "{}"
-            start_time = datetime.fromisoformat(start_dt).time().isoformat("minutes")
-            stop_time = datetime.fromisoformat(stop_dt).time().isoformat("minutes")
+            start_time = (
+                datetime.datetime.fromisoformat(start_dt).time().isoformat("minutes")
+            )
+            stop_time = (
+                datetime.datetime.fromisoformat(stop_dt).time().isoformat("minutes")
+            )
             activity_desc = f"{message} [{project}]"
 
             ladder = "├" if j < len(g) else "└"
@@ -419,13 +443,13 @@ def import_cmd(args: argparse.Namespace) -> None:
             for row in csv.DictReader(csv_file):
                 message = row["Description"]
                 project = row["Project"]
-                start_dt = datetime.combine(
-                    date.fromisoformat(row["Start date"]),
-                    time.fromisoformat(row["Start time"]),
+                start_dt = datetime.datetime.combine(
+                    datetime.date.fromisoformat(row["Start date"]),
+                    datetime.time.fromisoformat(row["Start time"]),
                 )
-                stop_dt = datetime.combine(
-                    date.fromisoformat(row["End date"]),
-                    time.fromisoformat(row["End time"]),
+                stop_dt = datetime.datetime.combine(
+                    datetime.date.fromisoformat(row["End date"]),
+                    datetime.time.fromisoformat(row["End time"]),
                 )
 
                 id_ = str(uuid.uuid4())
@@ -454,7 +478,7 @@ class ArgumentParser(argparse.ArgumentParser):
     <https://peps.python.org/pep-0389/#discussion-sys-stderr-and-sys-exit>
     """
 
-    def error(self, message: str) -> NoReturn:
+    def error(self, message: str) -> typing.NoReturn:
         pat = re.compile(r"argument <command>: invalid choice: '(.+?)'")
         if m := pat.match(message):
             message = f"'{m.group(1)}' is not a qz command"
@@ -490,6 +514,7 @@ def main() -> int:
     parser.add_argument(
         "-v", "--version", action="version", version=f"qz version {__version__}"
     )
+    parser.add_argument("--persist", action="store_true", help=argparse.SUPPRESS)
     parser.set_defaults(func=root_cmd)
 
     subparsers = parser.add_subparsers(title="subcommands", metavar="<command>")
@@ -512,8 +537,7 @@ def main() -> int:
     parser_stop.add_argument(
         "--at", help="set alternative stop datetime", metavar="<datetime>"
     )
-
-    parser_stop.add_argument("--discard", help="discard activity", action="store_true")
+    parser_stop.add_argument("--discard", action="store_true", help="discard activity")
     parser_stop.set_defaults(func=stop_cmd)
 
     parser_add = subparsers.add_parser("add", help="add a parametrized activity")
