@@ -93,6 +93,9 @@ def _init_db(f: Path) -> sqlite3.Connection:
 
         CREATE TRIGGER IF NOT EXISTS validate_dates_before_update
         BEFORE UPDATE ON activities
+        WHEN
+          NEW.start_dt IS NOT OLD.start_dt
+          OR NEW.stop_dt IS NOT OLD.stop_dt
         BEGIN
           WITH overlapping_dates AS (
             SELECT
