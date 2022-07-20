@@ -93,9 +93,6 @@ def _init_db(f: Path) -> sqlite3.Connection:
 
         CREATE TRIGGER IF NOT EXISTS validate_dates_before_update
         BEFORE UPDATE ON activities
-        WHEN
-          NEW.start_dt <> OLD.start_dt
-          OR NEW.stop_dt <> OLD.stop_dt
         BEGIN
           WITH overlapping_dates AS (
             SELECT
@@ -213,7 +210,7 @@ def root_cmd(args: argparse.Namespace) -> None:
         elapsed = datetime.now() - dt
         elapsed = elapsed - timedelta(microseconds=elapsed.microseconds)
 
-        print(f"tracking {message or '{}'} ({project or '{}'}) for {elapsed}")
+        print(f"tracking {message or '{}'} [{project or '{}'}] for {elapsed}")
 
     else:
         print("no tracking ongoing")
@@ -261,20 +258,31 @@ def stop_cmd(args: argparse.Namespace) -> None:
         if args.project is not None:
             project = args.project
 
-        db_conn.execute(
-            textwrap.dedent(
-                """\
-                UPDATE
-                  activities
-                SET
-                  message = ?,
-                  project = ?,
-                  stop_dt = ?
-                WHERE
-                  uuid = ?"""
-            ),
-            (message, project, datetime.now(), id_),
-        )
+        if args.at is not None:
+            try:
+                at_dt = parse_user_datetime(args.at)
+            except ValueError as e:
+                fatal(e)
+        else:
+            at_dt = datetime.now()
+
+        try:
+            db_conn.execute(
+                textwrap.dedent(
+                    """\
+                    UPDATE
+                      activities
+                    SET
+                      message = ?,
+                      project = ?,
+                      stop_dt = ?
+                    WHERE
+                      uuid = ?"""
+                ),
+                (message, project, at_dt, id_),
+            )
+        except sqlite3.IntegrityError as e:
+            fatal(e)
 
     print(id_)
 
@@ -366,10 +374,10 @@ def log_cmd(args: argparse.Namespace) -> None:
             project = project or "{}"
             start_time = datetime.fromisoformat(start_dt).time().isoformat("minutes")
             stop_time = datetime.fromisoformat(stop_dt).time().isoformat("minutes")
-            activity_desc = f"{message} ∈ {project}"
+            activity_desc = f"{message} [{project}]"
 
             ladder = "├" if j < len(g) else "└"
-            print(f"{ladder} {activity_desc:53.53} │ {start_time}-{stop_time} │ {id_}")
+            print(f"{ladder} {activity_desc:61.61} │ {start_time}-{stop_time} │ {id_}")
 
 
 def delete_cmd(args: argparse.Namespace) -> None:
@@ -495,6 +503,10 @@ def main() -> int:
     parser_stop.add_argument(
         "-p", "--project", help="set/update project", metavar="<proj>"
     )
+    parser_stop.add_argument(
+        "--at", help="set alternative stop datetime", metavar="<datetime>"
+    )
+
     parser_stop.add_argument("--discard", help="discard activity", action="store_true")
     parser_stop.set_defaults(func=stop_cmd)
 
@@ -505,9 +517,7 @@ def main() -> int:
     parser_add.add_argument("-p", "--project", help="set project", metavar="<proj>")
     parser_add.set_defaults(func=add_cmd)
 
-    parser_log = subparsers.add_parser(
-        "log", usage="%(prog)s [<options>]", help="show activity logs"
-    )
+    parser_log = subparsers.add_parser("log", help="show activity logs")
     parser_log.add_argument(
         "-n", type=int, help="limit number of activities", metavar="<number>"
     )
