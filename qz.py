@@ -184,6 +184,7 @@ def sqlite_db() -> collections.abc.Iterator[sqlite3.Connection]:
             conn.close()
             fatal("database did not pass integrity check")
 
+    conn.row_factory = sqlite3.Row
     try:
         yield conn
 
@@ -225,7 +226,10 @@ def root_cmd(args: argparse.Namespace) -> None:
     elapsed -= datetime.timedelta(microseconds=elapsed.microseconds)
 
     if args.persist:
-        # <https://notes.burke.libbey.me/ansi-escape-codes/>
+        """Persist updating status in the terminal.
+
+        <https://notes.burke.libbey.me/ansi-escape-codes/>
+        """
 
         try:
             sys.stdout.write("\x1b[?25l")  # hide cursor
@@ -233,13 +237,13 @@ def root_cmd(args: argparse.Namespace) -> None:
                 sys.stdout.write(f"tracking {message} [{project}] for {elapsed}\n")
                 time.sleep(1)
                 elapsed += datetime.timedelta(seconds=1)
-                sys.stdout.write("\x1b[A\r\x1b[K")
+                sys.stdout.write("\x1b[A\r\x1b[K")  # up, carriage return, erase line
 
         except KeyboardInterrupt:
             sys.stdout.write("\x1b[?25h")  # show cursor
-            return
 
-    print(f"tracking {message} [{project}] for {elapsed}")
+    else:
+        print(f"tracking {message} [{project}] for {elapsed}")
 
 
 def start_cmd(args: argparse.Namespace) -> None:
@@ -259,10 +263,11 @@ def start_cmd(args: argparse.Namespace) -> None:
                 (id_, args.message, args.project, at_dt, None),
             )
         except sqlite3.IntegrityError as e:
-            if str(e) == "UNIQUE constraint failed: index 'stop_dt_single_null'":
-                fatal("an activity is already running")
-
-            fatal(e)
+            match str(e):
+                case "UNIQUE constraint failed: index 'stop_dt_single_null'":
+                    fatal("an activity is already running")
+                case _:
+                    fatal(e)
 
     print(id_)
 
@@ -292,21 +297,20 @@ def stop_cmd(args: argparse.Namespace) -> None:
         else:
             at_dt = datetime.datetime.now()
 
+        stmt = textwrap.dedent(
+            """\
+            UPDATE
+              activities
+            SET
+              message = ?,
+              project = ?,
+              stop_dt = ?
+            WHERE
+              uuid = ?"""
+        )
+
         try:
-            db_conn.execute(
-                textwrap.dedent(
-                    """\
-                    UPDATE
-                      activities
-                    SET
-                      message = ?,
-                      project = ?,
-                      stop_dt = ?
-                    WHERE
-                      uuid = ?"""
-                ),
-                (message, project, at_dt, id_),
-            )
+            db_conn.execute(stmt, (message, project, at_dt, id_))
         except sqlite3.IntegrityError as e:
             fatal(e)
 
@@ -333,32 +337,27 @@ def add_cmd(args: argparse.Namespace) -> None:
 
 
 def log_cmd(args: argparse.Namespace) -> None:
-    if args.n is not None and args.n < 0:
-        fatal("argument -n: should be a positive integer")
+    if args.since is not None:
+        try:
+            since_dt = parse_user_datetime(args.since)
+        except ValueError as e:
+            fatal(e)
+    else:
+        since_dt = datetime.datetime.combine(
+            datetime.date.today() - datetime.timedelta(days=7),
+            datetime.time.min,
+        )
 
-    tmp = []
-    if args.project is not None:
-        tmp.append((args.project, "project == ?"))
+    if args.until is not None:
+        try:
+            until_dt = parse_user_datetime(args.until)
+        except ValueError as e:
+            fatal(e)
+    else:
+        until_dt = datetime.datetime.now()
 
-    for arg, s in [(args.since, "start_dt >= ?"), (args.until, "stop_dt <= ?")]:
-        if arg is not None:
-            try:
-                dt = parse_user_datetime(arg)
-                tmp.append((dt, s))
-            except ValueError as e:
-                fatal(e)
-
-    # build SELECT statement
-    params, predicates = zip(*tmp) if tmp else ((), ())
-    if args.n is not None:
-        params = (*params, args.n)
-
-    extra_predicates = ""
-    for p in predicates:
-        extra_predicates += "  AND " + p + "\n"
-
-    select_stmt = (
-        textwrap.dedent(
+    with sqlite_db() as db_conn:
+        stmt = textwrap.dedent(
             """\
             SELECT
               *
@@ -366,19 +365,23 @@ def log_cmd(args: argparse.Namespace) -> None:
               activities
             WHERE
               stop_dt IS NOT NULL
-            """
-        )
-        + extra_predicates
-        + textwrap.dedent(
-            """\
+              AND start_dt >= ?
+              AND stop_dt <= ?
+              AND project IN (
+                SELECT DISTINCT
+                  CASE
+                    WHEN ? IS NULL THEN project
+                    ELSE ?
+                  END
+                FROM
+                  activities
+              )
             ORDER BY
               start_dt DESC"""
         )
-        + ("\nLIMIT ?" if args.n is not None else "")
-    )
+        params = (since_dt, until_dt, args.project, args.project)
 
-    with sqlite_db() as db_conn:
-        rows = db_conn.execute(select_stmt, params).fetchall()
+        rows = db_conn.execute(stmt, params).fetchall()
 
     if not rows:
         print("no recorded activities")
@@ -391,7 +394,20 @@ def log_cmd(args: argparse.Namespace) -> None:
     for i, (k, g) in enumerate(
         (k, list(g)) for k, g in itertools.groupby(rows, key=group_key)
     ):
-        print("\n" + str(k) if i else k)
+        total_duration = sum(
+            (
+                datetime.datetime.fromisoformat(row["stop_dt"])
+                - datetime.datetime.fromisoformat(row["start_dt"])
+                for row in g
+            ),
+            start=datetime.timedelta(),
+        )
+        total_duration -= datetime.timedelta(microseconds=total_duration.microseconds)
+
+        # print header
+        print("\n" if i else "", end="")
+        print("\x1b[1m" + str(k) + str(total_duration).rjust(78) + "\x1b[0m")
+
         for j, row in enumerate(g, start=1):
             activity_uuid, message, project, start_dt, stop_dt = row
 
@@ -548,9 +564,6 @@ def main() -> int:
     parser_add.set_defaults(func=add_cmd)
 
     parser_log = subparsers.add_parser("log", help="show activity logs")
-    parser_log.add_argument(
-        "-n", type=int, help="limit number of activities", metavar="<number>"
-    )
     parser_log.add_argument(
         "-p", "--project", help="filter by project", metavar="<proj>"
     )
