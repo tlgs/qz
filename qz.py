@@ -525,7 +525,6 @@ def main() -> int:
             Run with no arguments to get current tracking status."""
         ),
         formatter_class=SubcommandHelpFormatter,
-        exit_on_error=True,
     )
     parser.add_argument(
         "-v", "--version", action="version", version=f"qz version {__version__}"
@@ -535,7 +534,11 @@ def main() -> int:
 
     subparsers = parser.add_subparsers(title="subcommands", metavar="<command>")
 
-    parser_start = subparsers.add_parser("start", help="start tracking an activity")
+    parser_start = subparsers.add_parser(
+        "start",
+        help="start tracking an activity",
+        description="Start tracking an activity.",
+    )
     parser_start.add_argument("-m", "--message", help="set message", metavar="<msg>")
     parser_start.add_argument("-p", "--project", help="set project", metavar="<proj>")
     parser_start.add_argument(
@@ -543,7 +546,11 @@ def main() -> int:
     )
     parser_start.set_defaults(func=start_cmd)
 
-    parser_stop = subparsers.add_parser("stop", help="stop tracking an activity")
+    parser_stop = subparsers.add_parser(
+        "stop",
+        help="stop tracking an activity",
+        description="Stop tracking an activity.",
+    )
     parser_stop.add_argument(
         "-m", "--message", help="set/update message", metavar="<msg>"
     )
@@ -556,14 +563,29 @@ def main() -> int:
     parser_stop.add_argument("--discard", action="store_true", help="discard activity")
     parser_stop.set_defaults(func=stop_cmd)
 
-    parser_add = subparsers.add_parser("add", help="add a parametrized activity")
+    parser_add = subparsers.add_parser(
+        "add",
+        help="add a parametrized activity",
+        description="Add a parametrized activity.",
+    )
     parser_add.add_argument("start", help="start datetime")
     parser_add.add_argument("stop", help="stop datetime")
     parser_add.add_argument("-m", "--message", help="set messsage", metavar="<msg>")
     parser_add.add_argument("-p", "--project", help="set project", metavar="<proj>")
     parser_add.set_defaults(func=add_cmd)
 
-    parser_log = subparsers.add_parser("log", help="show activity logs")
+    parser_log = subparsers.add_parser(
+        "log",
+        help="show activity logs",
+        description=textwrap.dedent(
+            """\
+            Show activity logs.
+
+            By default only shows activities in the past 7 days.
+            """
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     parser_log.add_argument(
         "-p", "--project", help="filter by project", metavar="<proj>"
     )
@@ -579,12 +601,16 @@ def main() -> int:
     )
     parser_log.set_defaults(func=log_cmd)
 
-    parser_delete = subparsers.add_parser("delete", help="delete an activity")
+    parser_delete = subparsers.add_parser(
+        "delete", help="delete an activity", description="Delete an activity."
+    )
     parser_delete.add_argument("activity_uuid")
     parser_delete.set_defaults(func=delete_cmd)
 
     parser_import = subparsers.add_parser(
-        "import", help="import activities from other tools"
+        "import",
+        help="import activities from other tools",
+        description="Import activities from other tools.",
     )
     parser_import.add_argument(
         "-t",
