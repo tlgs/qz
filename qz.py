@@ -11,7 +11,6 @@ import re
 import sqlite3
 import sys
 import textwrap
-import time
 import typing
 import uuid
 
@@ -225,25 +224,7 @@ def root_cmd(args: argparse.Namespace) -> None:
     elapsed = datetime.datetime.now() - dt
     elapsed -= datetime.timedelta(microseconds=elapsed.microseconds)
 
-    if args.persist:
-        """Persist updating status in the terminal.
-
-        <https://notes.burke.libbey.me/ansi-escape-codes/>
-        """
-
-        try:
-            sys.stdout.write("\x1b[?25l")  # hide cursor
-            while True:
-                sys.stdout.write(f"tracking {message} [{project}] for {elapsed}\n")
-                time.sleep(1)
-                elapsed += datetime.timedelta(seconds=1)
-                sys.stdout.write("\x1b[A\r\x1b[K")  # up, carriage return, erase line
-
-        except KeyboardInterrupt:
-            sys.stdout.write("\x1b[?25h")  # show cursor
-
-    else:
-        print(f"tracking {message} [{project}] for {elapsed}")
+    print(f"tracking {message} [{project}] for {elapsed}")
 
 
 def start_cmd(args: argparse.Namespace) -> None:
@@ -529,7 +510,6 @@ def main() -> int:
     parser.add_argument(
         "-v", "--version", action="version", version=f"qz version {__version__}"
     )
-    parser.add_argument("--persist", action="store_true", help=argparse.SUPPRESS)
     parser.set_defaults(func=root_cmd)
 
     subparsers = parser.add_subparsers(title="subcommands", metavar="<command>")
