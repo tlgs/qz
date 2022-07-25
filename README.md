@@ -24,7 +24,7 @@ subcommands:
 
 ## Installation
 
-Through pip (VCS support):
+Using pip (only VCS):
 
 ```
 pip install git+ssh://git@github.com/tlgs/qz.git
@@ -35,7 +35,7 @@ On Arch Linux:
 ```
 git clone git@github.com:tlgs/qz.git
 cd qz
-makepkg -crsi
+makepkg -csri
 ```
 
 ## Development

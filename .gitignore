@@ -3,6 +3,4 @@ __pycache__/
 .direnv/
 .envrc
 
-*.pkg.tar.zst
-
 *.db

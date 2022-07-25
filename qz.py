@@ -319,27 +319,21 @@ def log_cmd(args: argparse.Namespace) -> None:
         until_dt = datetime.datetime.now()
 
     with sqlite_db() as db_conn:
-        stmt = (
-            textwrap.dedent(
-                """\
-                SELECT
-                  *
-                FROM
-                  activities
-                WHERE
-                  start_dt >= ?
-                  AND stop_dt <= ?
-                """
-            )
-            + ("  AND project = ?\n" if args.project else "")
-            + "ORDER BY\n  start_dt DESC"
+        stmt = textwrap.dedent(
+            """\
+            SELECT
+              *
+            FROM
+              activities
+            WHERE
+              start_dt >= ?
+              AND stop_dt <= ?
+            ORDER BY
+              start_dt DESC
+            """
         )
 
-        params = [since_dt, until_dt]
-        if args.project:
-            params = [*params, args.project]
-
-        rows = db_conn.execute(stmt, params).fetchall()
+        rows = db_conn.execute(stmt, (since_dt, until_dt)).fetchall()
 
     if not rows:
         print("no recorded activities")
@@ -549,9 +543,6 @@ def main() -> int:
             """
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
-    )
-    parser_log.add_argument(
-        "-p", "--project", help="filter by project", metavar="<proj>"
     )
     parser_log.add_argument(
         "--since",
