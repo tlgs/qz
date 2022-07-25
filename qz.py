@@ -58,6 +58,8 @@ def _init_db(f: pathlib.Path) -> sqlite3.Connection:
           start_dt TEXT NOT NULL,
           stop_dt  TEXT,
 
+          CHECK (message IS NULL OR message != '')
+          CHECK (project IS NULL OR project != '')
           CHECK (datetime(start_dt) IS NOT NULL)
           CHECK (datetime(stop_dt) IS NOT NULL OR stop_dt IS NULL)
           CHECK (datetime(stop_dt) > datetime(start_dt))
@@ -119,36 +121,6 @@ def _init_db(f: pathlib.Path) -> sqlite3.Connection:
               WHEN EXISTS(SELECT * FROM overlapping_dates)
                 THEN RAISE(ABORT, 'overlapping activities')
             END;
-        END;
-
-        CREATE TRIGGER IF NOT EXISTS no_empty_strings_after_insert
-        AFTER INSERT on activities
-        WHEN
-          NEW.message == ''
-          OR NEW.project == ''
-        BEGIN
-          UPDATE
-            activities
-          SET
-            message = iif(NEW.message == '', NULL, NEW.message),
-            project = iif(NEW.project == '', NULL, NEW.project)
-          WHERE
-            uuid = NEW.uuid;
-        END;
-
-        CREATE TRIGGER IF NOT EXISTS no_empty_strings_after_update
-        AFTER UPDATE on activities
-        WHEN
-          NEW.message == ''
-          OR NEW.project == ''
-        BEGIN
-          UPDATE
-            activities
-          SET
-            message = iif(NEW.message == '', NULL, NEW.message),
-            project = iif(NEW.project == '', NULL, NEW.project)
-          WHERE
-            uuid = NEW.uuid;
         END;
 
         CREATE VIEW IF NOT EXISTS running_activity AS
@@ -275,9 +247,9 @@ def stop_cmd(args: argparse.Namespace) -> None:
             return
 
         if args.message is not None:
-            message = args.message
+            message = None if args.message == "" else args.message
         if args.project is not None:
-            project = args.project
+            project = None if args.project == "" else args.project
 
         if args.at is not None:
             try:
