@@ -123,6 +123,9 @@ def _init_db(f: pathlib.Path) -> sqlite3.Connection:
 
         CREATE TRIGGER IF NOT EXISTS no_empty_strings_after_insert
         AFTER INSERT on activities
+        WHEN
+          NEW.message == ''
+          OR NEW.project == ''
         BEGIN
           UPDATE
             activities
@@ -135,6 +138,9 @@ def _init_db(f: pathlib.Path) -> sqlite3.Connection:
 
         CREATE TRIGGER IF NOT EXISTS no_empty_strings_after_update
         AFTER UPDATE on activities
+        WHEN
+          NEW.message == ''
+          OR NEW.project == ''
         BEGIN
           UPDATE
             activities
@@ -170,6 +176,9 @@ def sqlite_db() -> collections.abc.Iterator[sqlite3.Connection]:
     encountering an exception and a connection is open. See:
     - <https://softwareengineering.stackexchange.com/q/200522>
     - <https://eli.thegreenplace.net/2009/06/12/safely-using-destructors-in-python>
+
+    Can use something like `conn.set_trace_callback(print)`
+    to faciliate statement debugging during development.
     """
     f = _db_path()
     if not f.exists():
@@ -230,18 +239,18 @@ def root_cmd(args: argparse.Namespace) -> None:
 def start_cmd(args: argparse.Namespace) -> None:
     if args.at is not None:
         try:
-            at_dt = parse_user_datetime(args.at)
+            dt = parse_user_datetime(args.at)
         except ValueError as e:
             fatal(e)
     else:
-        at_dt = datetime.datetime.now()
+        dt = datetime.datetime.now()
 
     id_ = str(uuid.uuid4())
     with sqlite_db() as db_conn:
         try:
             db_conn.execute(
                 "INSERT INTO activities VALUES (?, ?, ?, ?, ?)",
-                (id_, args.message, args.project, at_dt, None),
+                (id_, args.message, args.project, dt, None),
             )
         except sqlite3.IntegrityError as e:
             match str(e):
@@ -272,11 +281,11 @@ def stop_cmd(args: argparse.Namespace) -> None:
 
         if args.at is not None:
             try:
-                at_dt = parse_user_datetime(args.at)
+                dt = parse_user_datetime(args.at)
             except ValueError as e:
                 fatal(e)
         else:
-            at_dt = datetime.datetime.now()
+            dt = datetime.datetime.now()
 
         stmt = textwrap.dedent(
             """\
@@ -291,7 +300,7 @@ def stop_cmd(args: argparse.Namespace) -> None:
         )
 
         try:
-            db_conn.execute(stmt, (message, project, at_dt, id_))
+            db_conn.execute(stmt, (message, project, dt, id_))
         except sqlite3.IntegrityError as e:
             fatal(e)
 
@@ -338,29 +347,25 @@ def log_cmd(args: argparse.Namespace) -> None:
         until_dt = datetime.datetime.now()
 
     with sqlite_db() as db_conn:
-        stmt = textwrap.dedent(
-            """\
-            SELECT
-              *
-            FROM
-              activities
-            WHERE
-              stop_dt IS NOT NULL
-              AND start_dt >= ?
-              AND stop_dt <= ?
-              AND project IN (
-                SELECT DISTINCT
-                  CASE
-                    WHEN ? IS NULL THEN project
-                    ELSE ?
-                  END
+        stmt = (
+            textwrap.dedent(
+                """\
+                SELECT
+                  *
                 FROM
                   activities
-              )
-            ORDER BY
-              start_dt DESC"""
+                WHERE
+                  start_dt >= ?
+                  AND stop_dt <= ?
+                """
+            )
+            + ("  AND project = ?\n" if args.project else "")
+            + "ORDER BY\n  start_dt DESC"
         )
-        params = (since_dt, until_dt, args.project, args.project)
+
+        params = [since_dt, until_dt]
+        if args.project:
+            params = [*params, args.project]
 
         rows = db_conn.execute(stmt, params).fetchall()
 
@@ -368,13 +373,15 @@ def log_cmd(args: argparse.Namespace) -> None:
         print("no recorded activities")
         return
 
-    def group_key(row: tuple[str, str, str, str, str]) -> datetime.date:
-        _, _, _, start_dt, _ = row
-        return datetime.datetime.fromisoformat(start_dt).date()
+    grouped_days = [
+        (k, list(g))
+        for k, g in itertools.groupby(
+            rows,
+            key=lambda row: datetime.datetime.fromisoformat(row["start_dt"]).date(),
+        )
+    ]
 
-    for i, (k, g) in enumerate(
-        (k, list(g)) for k, g in itertools.groupby(rows, key=group_key)
-    ):
+    for i, (k, g) in enumerate(grouped_days):
         total_duration = sum(
             (
                 datetime.datetime.fromisoformat(row["stop_dt"])
@@ -386,8 +393,13 @@ def log_cmd(args: argparse.Namespace) -> None:
         total_duration -= datetime.timedelta(microseconds=total_duration.microseconds)
 
         # print header
-        print("\n" if i else "", end="")
-        print("\x1b[1m" + str(k) + str(total_duration).rjust(78) + "\x1b[0m")
+        print(
+            ("\n" if i else "")
+            + "\x1b[1m"
+            + str(k)
+            + str(total_duration).rjust(78)
+            + "\x1b[0m"
+        )
 
         for j, row in enumerate(g, start=1):
             activity_uuid, message, project, start_dt, stop_dt = row
