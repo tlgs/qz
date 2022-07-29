@@ -348,7 +348,7 @@ def log_cmd(args: argparse.Namespace) -> None:
     ]
 
     for i, (k, g) in enumerate(grouped_days):
-        total_duration = sum(
+        duration = sum(
             (
                 datetime.datetime.fromisoformat(row["stop_dt"])
                 - datetime.datetime.fromisoformat(row["start_dt"])
@@ -356,14 +356,14 @@ def log_cmd(args: argparse.Namespace) -> None:
             ),
             start=datetime.timedelta(),
         )
-        total_duration -= datetime.timedelta(microseconds=total_duration.microseconds)
+        duration -= datetime.timedelta(microseconds=duration.microseconds)
 
         # print header
         print(
             ("\n" if i else "")
             + "\x1b[1m"
             + str(k)
-            + str(total_duration).rjust(78)
+            + str(duration).rjust(78)
             + "\x1b[0m"
         )
 
@@ -526,8 +526,8 @@ def main() -> int:
         help="add a parametrized activity",
         description="Add a parametrized activity.",
     )
-    parser_add.add_argument("start", help="start datetime")
-    parser_add.add_argument("stop", help="stop datetime")
+    parser_add.add_argument("start", help="start datetime", metavar="<start>")
+    parser_add.add_argument("stop", help="stop datetime", metavar="<stop>")
     parser_add.add_argument("-m", "--message", help="set messsage", metavar="<msg>")
     parser_add.add_argument("-p", "--project", help="set project", metavar="<proj>")
     parser_add.set_defaults(func=add_cmd)
@@ -559,7 +559,7 @@ def main() -> int:
     parser_delete = subparsers.add_parser(
         "delete", help="delete an activity", description="Delete an activity."
     )
-    parser_delete.add_argument("activity_uuid")
+    parser_delete.add_argument("activity_uuid", metavar="<activity_uuid>")
     parser_delete.set_defaults(func=delete_cmd)
 
     parser_import = subparsers.add_parser(
@@ -572,10 +572,10 @@ def main() -> int:
         "--tool",
         choices=["toggl"],
         required=True,
-        help="specify tool",
+        help="specify tool (one of: toggl)",
         metavar="<tool>",
     )
-    parser_import.add_argument("file", help="tool-specific data file")
+    parser_import.add_argument("file", help="tool-specific data file", metavar="<file>")
     parser_import.set_defaults(func=import_cmd)
 
     args = parser.parse_args()
