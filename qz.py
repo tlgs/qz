@@ -2,6 +2,7 @@ import argparse
 import collections.abc
 import contextlib
 import csv
+import ctypes
 import datetime
 import importlib.metadata
 import itertools
@@ -23,20 +24,40 @@ def fatal(err: str | Exception) -> typing.NoReturn:
 
 
 def _db_path() -> pathlib.Path:
+    """Get path to data store: `QZ_DB` env var or platform user data dir.
+
+    See <https://github.com/platformdirs/platformdirs>.
+    Consciously ignoring Android as a platform.
+    """
     env_path = os.getenv("QZ_DB", "")
 
     if env_path.strip():
         return pathlib.Path(env_path)
 
-    # user data path
-    if sys.platform != "linux":
-        fatal("unsupported platform `{sys.platform}`")
+    # user data dir
+    if sys.platform == "darwin":
+        base_path = pathlib.Path("~/Library/Application Support").expanduser()
 
-    xdg_path = os.getenv("XDG_DATA_HOME", "")
-    if xdg_path.strip():
-        base_path = pathlib.Path(xdg_path)
+    elif sys.platform == "win32":
+        # UNTESTED
+
+        buf = ctypes.create_unicode_buffer(1024)
+        windll = ctypes.windll
+        windll.shell32.SHGetFolderPathW(None, 28, None, 0, buf)
+
+        if any(ord(c) > 255 for c in buf):
+            buf2 = ctypes.create_unicode_buffer(1024)
+            if windll.kernel32.GetShortPathNameW(buf.value, buf2, 1024):
+                buf = buf2
+
+        base_path = pathlib.Path(buf.value)
+
     else:
-        base_path = pathlib.Path("~/.local/share").expanduser()
+        xdg_path = os.getenv("XDG_DATA_HOME", "")
+        if xdg_path.strip():
+            base_path = pathlib.Path(xdg_path)
+        else:
+            base_path = pathlib.Path("~/.local/share").expanduser()
 
     return base_path / "qz" / "store.db"
 
@@ -475,7 +496,7 @@ class SubcommandHelpFormatter(argparse.RawDescriptionHelpFormatter):
         return parts
 
 
-def main() -> int:
+def main(args: list[str] | None = None) -> int:
     parser = ArgumentParser(
         description=textwrap.dedent(
             """\
@@ -578,8 +599,8 @@ def main() -> int:
     parser_import.add_argument("file", help="tool-specific data file", metavar="<file>")
     parser_import.set_defaults(func=import_cmd)
 
-    args = parser.parse_args()
-    args.func(args)
+    parsed_args = parser.parse_args(args)
+    parsed_args.func(parsed_args)
 
     return 0
 
