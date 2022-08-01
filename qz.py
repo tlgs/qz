@@ -189,7 +189,7 @@ def sqlite_db() -> collections.abc.Iterator[sqlite3.Connection]:
     try:
         yield conn
 
-        # if an exception occurs (e.g. `fatal`) the transaction is not committed
+        # let's make sure we only commit if no exception was raised:
         conn.commit()
     finally:
         conn.close()
@@ -219,8 +219,8 @@ def root_cmd(args: argparse.Namespace) -> None:
         return
 
     _, message, project, start_dt, _ = row
-    message = message or "{}"
-    project = project or "{}"
+    message = message or "∅"
+    project = project or "∅"
     dt = datetime.datetime.fromisoformat(start_dt)
 
     elapsed = datetime.datetime.now() - dt
@@ -256,6 +256,9 @@ def start_cmd(args: argparse.Namespace) -> None:
 
 
 def stop_cmd(args: argparse.Namespace) -> None:
+    if args.discard and (args.message or args.project or args.at):
+        fatal("incompatible options: modifiers should not be used with discard")
+
     with sqlite_db() as db_conn:
         row = db_conn.execute("SELECT * FROM running_activity").fetchone()
         if not row:
@@ -265,12 +268,13 @@ def stop_cmd(args: argparse.Namespace) -> None:
 
         if args.discard:
             db_conn.execute("DELETE FROM activities WHERE uuid = ?", (id_,))
+            print(id_)
             return
 
         if args.message is not None:
-            message = None if args.message == "" else args.message
+            message = args.message
         if args.project is not None:
-            project = None if args.project == "" else args.project
+            project = args.project
 
         if args.at is not None:
             try:
@@ -392,8 +396,8 @@ def log_cmd(args: argparse.Namespace) -> None:
             activity_uuid, message, project, start_dt, stop_dt = row
 
             id_ = activity_uuid[:8]
-            message = message or "{}"
-            project = project or "{}"
+            message = message or "∅"
+            project = project or "∅"
             start_time = (
                 datetime.datetime.fromisoformat(start_dt).time().isoformat("minutes")
             )
@@ -527,6 +531,10 @@ def main(args: list[str] | None = None) -> int:
 
     parser_stop = subparsers.add_parser(
         "stop",
+        usage=(
+            "%(prog)s [-m <msg>] [-p <proj>] [--at <datetime>]\n"
+            "       %(prog)s --discard"
+        ),
         help="stop tracking an activity",
         description="Stop tracking an activity.",
     )
