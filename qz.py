@@ -3,6 +3,8 @@ import contextlib
 import csv
 import ctypes
 import datetime
+import functools
+import hashlib
 import importlib.metadata
 import itertools
 import os
@@ -208,6 +210,34 @@ def parse_user_datetime(s: str) -> datetime.datetime:
     raise ValueError(f"could not parse `{s}` as a datetime")
 
 
+@functools.cache
+def colorize(s: str) -> str:
+    palette = [
+        (11, 131, 217),
+        (158, 91, 217),
+        (217, 65, 130),
+        (227, 106, 0),
+        (191, 112, 0),
+        (45, 166, 8),
+        (6, 168, 147),
+        (201, 128, 107),
+        (70, 91, 179),
+        (153, 0, 153),
+        (199, 175, 20),
+        (86, 102, 20),
+        (217, 43, 43),
+        (82, 82, 102),
+        (153, 17, 2),
+    ]
+
+    s_bytes = bytes(s.strip(), encoding="utf-8")
+    s_hash = hashlib.md5(s_bytes, usedforsecurity=False).digest()
+    s_bucket = int.from_bytes(s_hash, byteorder="big") % len(palette)
+
+    ansi_sgr = "\x1b[38;2;{};{};{}m".format(*palette[s_bucket])
+    return ansi_sgr + s + "\x1b[0m"
+
+
 def root_cmd(args: argparse.Namespace) -> None:
     with sqlite_db() as db_conn:
         row = db_conn.execute("SELECT * FROM running_activity").fetchone()
@@ -218,7 +248,7 @@ def root_cmd(args: argparse.Namespace) -> None:
 
     _, message, project, start_dt, _ = row
     message = message or "∅"
-    project = project or "∅"
+    project = colorize(project or "∅")
     dt = datetime.datetime.fromisoformat(start_dt)
 
     elapsed = datetime.datetime.now() - dt
@@ -378,9 +408,11 @@ def log_cmd(args: argparse.Namespace) -> None:
         total -= datetime.timedelta(microseconds=total.microseconds)
         return total
 
+    project_length = max(len(p) if p else 1 for _, _, p, _, _ in rows)
+    message_length = 58 - project_length
+
     grouped_days = [(k, list(g)) for k, g in itertools.groupby(rows, group_by_day)]
     for i, (k, g) in enumerate(grouped_days):
-        # day header
         if i:
             print()
         print("\x1b[1m" + str(k) + str(day_duration(g)).rjust(78) + "\x1b[0m")
@@ -389,14 +421,13 @@ def log_cmd(args: argparse.Namespace) -> None:
             activity_uuid, message, project, start_dt, stop_dt = row
 
             id_ = activity_uuid[:8]
-            message = message or "∅"
-            project = project or "∅"
-            start_time = datetime.datetime.fromisoformat(start_dt).strftime("%H:%m")
-            stop_time = datetime.datetime.fromisoformat(stop_dt).strftime("%H:%m")
-            activity_desc = f"{message} [{project}]"
+            message = f"{message or '∅':{message_length}.{message_length}}"
+            project = colorize(f"{project or '∅':{project_length}}")
+            start_time = datetime.datetime.fromisoformat(start_dt).strftime("%H:%M")
+            stop_time = datetime.datetime.fromisoformat(stop_dt).strftime("%H:%M")
 
             ladder = "├" if j < len(g) else "└"
-            print(f"{ladder} {activity_desc:61.61} │ {start_time}-{stop_time} │ {id_}")
+            print(f"{ladder} {message} │ {project} │ {start_time}-{stop_time} │ {id_}")
 
 
 def delete_cmd(args: argparse.Namespace) -> None:
