@@ -322,18 +322,25 @@ def add_cmd(args: argparse.Namespace) -> None:
 
 
 def log_cmd(args: argparse.Namespace) -> None:
-    if args.since is not None:
+    if args.today and (args.since or args.until):
+        fatal("incompatible options: range modifiers should not be used with today")
+
+    if args.since:
         try:
             since_dt = parse_user_datetime(args.since)
         except ValueError as e:
             fatal(e)
+    elif args.today:
+        since_dt = datetime.datetime.now().replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
     else:
         since_dt = datetime.datetime.combine(
             datetime.date.today() - datetime.timedelta(days=7),
             datetime.time.min,
         )
 
-    if args.until is not None:
+    if args.until:
         try:
             until_dt = parse_user_datetime(args.until)
         except ValueError as e:
@@ -352,9 +359,10 @@ def log_cmd(args: argparse.Namespace) -> None:
               start_dt >= ?
               AND stop_dt <= ?
             ORDER BY
-              start_dt DESC
-            """
+              start_dt DESC"""
         )
+        if not (args.today or args.since or args.until):
+            stmt += "\nLIMIT 20"
 
         rows = db_conn.execute(stmt, (since_dt, until_dt)).fetchall()
 
@@ -554,11 +562,15 @@ def main(args: list[str] | None = None) -> int:
     parser_log = subparsers.add_parser(
         "log",
         help="show activity logs",
+        usage=(
+            "%(prog)s [-h] [--since <datetime>] [--until <datetime>]\n"
+            "       %(prog)s [-h] [--today]"
+        ),
         description=textwrap.dedent(
             """\
             Show activity logs.
 
-            By default only shows activities in the past 7 days.
+            By default only shows the last 20 activities of the past 7 days.
             """
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -572,6 +584,9 @@ def main(args: list[str] | None = None) -> int:
         "--until",
         help="show activities older than a specific date",
         metavar="<datetime>",
+    )
+    parser_log.add_argument(
+        "--today", action="store_true", help="show activities recorded today"
     )
     parser_log.set_defaults(func=log_cmd)
 
