@@ -1,5 +1,4 @@
 import argparse
-import collections.abc
 import contextlib
 import csv
 import ctypes
@@ -12,13 +11,14 @@ import re
 import sqlite3
 import sys
 import textwrap
-import typing
 import uuid
+from collections.abc import Iterator
+from typing import NoReturn
 
 __version__ = importlib.metadata.version("qz")
 
 
-def fatal(err: str | Exception) -> typing.NoReturn:
+def fatal(err: str | Exception) -> NoReturn:
     print(f"qz: {err}", file=sys.stderr)
     sys.exit(1)
 
@@ -160,7 +160,7 @@ def _init_db(f: pathlib.Path) -> sqlite3.Connection:
 
 
 @contextlib.contextmanager
-def sqlite_db() -> collections.abc.Iterator[sqlite3.Connection]:
+def sqlite_db() -> Iterator[sqlite3.Connection]:
     """Create and close an SQLite database connection.
 
     Using a hand-rolled context manager to handle database connections as
@@ -184,8 +184,6 @@ def sqlite_db() -> collections.abc.Iterator[sqlite3.Connection]:
         if result != "ok":
             conn.close()
             fatal("database did not pass integrity check")
-
-    conn.row_factory = sqlite3.Row
     try:
         yield conn
 
@@ -364,33 +362,28 @@ def log_cmd(args: argparse.Namespace) -> None:
         print("no recorded activities")
         return
 
-    grouped_days = [
-        (k, list(g))
-        for k, g in itertools.groupby(
-            rows,
-            key=lambda row: datetime.datetime.fromisoformat(row["start_dt"]).date(),
-        )
-    ]
+    def group_by_day(row: tuple[str, str, str, str, str]) -> datetime.date:
+        _, _, _, start_dt, _ = row
+        return datetime.datetime.fromisoformat(start_dt).date()
 
+    def day_duration(group: list[tuple[str, str, str, str, str]]) -> datetime.timedelta:
+        total = datetime.timedelta()
+        for row in group:
+            _, _, _, raw_start, raw_stop = row
+            start_dt = datetime.datetime.fromisoformat(raw_start)
+            stop_dt = datetime.datetime.fromisoformat(raw_stop)
+
+            total += stop_dt - start_dt
+
+        total -= datetime.timedelta(microseconds=total.microseconds)
+        return total
+
+    grouped_days = [(k, list(g)) for k, g in itertools.groupby(rows, group_by_day)]
     for i, (k, g) in enumerate(grouped_days):
-        duration = sum(
-            (
-                datetime.datetime.fromisoformat(row["stop_dt"])
-                - datetime.datetime.fromisoformat(row["start_dt"])
-                for row in g
-            ),
-            start=datetime.timedelta(),
-        )
-        duration -= datetime.timedelta(microseconds=duration.microseconds)
-
-        # print header
-        print(
-            ("\n" if i else "")
-            + "\x1b[1m"
-            + str(k)
-            + str(duration).rjust(78)
-            + "\x1b[0m"
-        )
+        # day header
+        if i:
+            print()
+        print("\x1b[1m" + str(k) + str(day_duration(g)).rjust(78) + "\x1b[0m")
 
         for j, row in enumerate(g, start=1):
             activity_uuid, message, project, start_dt, stop_dt = row
@@ -398,12 +391,8 @@ def log_cmd(args: argparse.Namespace) -> None:
             id_ = activity_uuid[:8]
             message = message or "∅"
             project = project or "∅"
-            start_time = (
-                datetime.datetime.fromisoformat(start_dt).time().isoformat("minutes")
-            )
-            stop_time = (
-                datetime.datetime.fromisoformat(stop_dt).time().isoformat("minutes")
-            )
+            start_time = datetime.datetime.fromisoformat(start_dt).strftime("%H:%m")
+            stop_time = datetime.datetime.fromisoformat(stop_dt).strftime("%H:%m")
             activity_desc = f"{message} [{project}]"
 
             ladder = "├" if j < len(g) else "└"
@@ -478,7 +467,7 @@ class ArgumentParser(argparse.ArgumentParser):
     <https://peps.python.org/pep-0389/#discussion-sys-stderr-and-sys-exit>
     """
 
-    def error(self, message: str) -> typing.NoReturn:
+    def error(self, message: str) -> NoReturn:
         pat = re.compile(r"argument <command>: invalid choice: '(.+?)'")
         if m := pat.match(message):
             message = f"'{m.group(1)}' is not a qz command"
