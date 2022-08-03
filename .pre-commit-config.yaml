@@ -12,7 +12,7 @@ repos:
       - id: black
 
   - repo: https://github.com/PyCQA/flake8
-    rev: 4.0.1
+    rev: 5.0.3
     hooks:
       - id: flake8
         args: ['--max-line-length=88', '--extend-ignore=E203']
@@ -29,13 +29,13 @@ repos:
     hooks:
       - id: mypy
         args: ['--strict']
-        exclude: 'test_qz.py'
+        exclude: 'tests/'
 
   - repo: https://github.com/PyCQA/bandit
     rev: 1.7.4
     hooks:
       - id: bandit
-        exclude: 'test_qz.py'
+        exclude: 'tests/'
 
   - repo: local
     hooks:

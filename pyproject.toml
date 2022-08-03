@@ -20,9 +20,9 @@ dev = [
 
 
 [tool.coverage]
-run.branch = true
 run.command_line = "-m pytest"
-run.omit = ["test_qz.py"]
+run.branch = true
+run.source = ["qz"]
 
 report.show_missing = true
 report.fail_under = 80

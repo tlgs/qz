@@ -4,9 +4,9 @@ qz is a _really_ minimal time tracking CLI application.
 
 Here's a quick overview:
 
-- uses a simple SQLite database to manage state
-- exposes a simple and bare interface to record activities
-- written in less than 500 SLOC of idiomatic Python; no third-party dependencies
+- single Python module (~500 SLOC); no third-party dependencies
+- simple SQLite database to manage state
+- minimal command interface to record and log activities
 
 ## Installation
 
@@ -72,20 +72,6 @@ your platform's defaults).
 If you need to do something that's not exposed by the CLI API, **you should** go ahead
 take advantage of SQLite's ease of use.
 Complex queries or dynamic batch insertions? `SELECT` and `INSERT`.
-
-### Recipes
-
-```sql
-SELECT
-  project,
-  SUM(unixepoch(stop_dt) - unixepoch(start_dt)) / 3600 AS total_hours
-FROM
-  activities
-GROUP BY
-  project
-ORDER BY
-  total_hours DESC;
-```
 
 ## Development
 
