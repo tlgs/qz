@@ -57,38 +57,11 @@ Any datetime supplied by the user should be in a format that is parseable by
 or [`datetime.time.fromisoformat`](https://docs.python.org/3/library/datetime.html#datetime.time.fromisoformat).
 The current date will be used when only the time is provided.
 
-Running `qz log` will produce a readable summary of the most recently
-recorded activities:
-
-```
-1927-10-31                                                                       3:25:00
-├ discussion with Horton and Marrison [qz]                      │ 14:15-17:03 │ e8aad82a
-└ Murray Hill tour [{}]                                         │ 08:59-09:36 │ 1e9b3f27
-
-1880-07-13                                                                       3:46:00
-├ read through piezoelectric theory notes [qz]                  │ 15:51-18:41 │ ae85f955
-└ sit-down with the french brothers [qz]                        │ 10:13-11:09 │ af2551cc
-```
-
 When it comes to importing, only [toggl](https://track.toggl.com) is supported
 at this time.
 
 By design, there is no support for: activities in the future,
 overlapping activities, or timezones (everything is `localtime`).
-
-### Usage messages
-
-These should give you a pretty good idea about the CLI feature set:
-
-```
-usage: qz [-h] [-v] <command> ...
-usage: qz start [-h] [-m <msg>] [-p <proj>] [--at <datetime>]
-usage: qz stop [-h] [-m <msg>] [-p <proj>] [--at <datetime>] [--discard]
-usage: qz add [-h] [-m <msg>] [-p <proj>] <start> <stop>
-usage: qz log [-h] [--since <datetime>] [--until <datetime>]
-usage: qz delete [-h] <activity_uuid>
-usage: qz import [-h] -t <tool> <file>
-```
 
 ### What about X?
 
@@ -97,9 +70,24 @@ it's a very simple SQLite database in a sane location (whatever `QZ_DB` is set t
 your platform's defaults).
 
 If you need to do something that's not exposed by the CLI API, **you should** go ahead
-and use it like a normal database.
-Complex queries or batch activity insertions? `SELECT` and `INSERT`.
+take advantage of SQLite's ease of use.
+Complex queries or dynamic batch insertions? `SELECT` and `INSERT`.
+
+### Recipes
+
+```sql
+SELECT
+  project,
+  SUM(unixepoch(stop_dt) - unixepoch(start_dt)) / 3600 AS total_hours
+FROM
+  activities
+GROUP BY
+  project
+ORDER BY
+  total_hours DESC;
+```
 
 ## Development
 
 - install and setup project with `pip install -e .[dev]` and `pre-commit install`
+- run tests with `coverage run` and inspect results with `coverage report`
