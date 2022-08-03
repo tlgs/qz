@@ -2,7 +2,6 @@ import argparse
 import csv
 import ctypes
 import datetime
-import importlib.metadata
 import itertools
 import os
 import re
@@ -15,8 +14,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import NoReturn
 
-# this is very, very slow...
-__version__ = importlib.metadata.version("qz")
+__version__ = "0.1.0-alpha"
 
 
 def fatal(err: str | Exception) -> NoReturn:
@@ -33,7 +31,7 @@ def get_db_path() -> Path:
     env_path = os.getenv("QZ_DB", "")
 
     if env_path.strip():
-        return Path(env_path)
+        return Path(env_path).resolve()
 
     # user data dir
     if sys.platform == "darwin":
@@ -210,6 +208,10 @@ def parse_user_datetime(s: str) -> datetime.datetime:
 
 
 def root_cmd(args: argparse.Namespace) -> None:
+    if args.locate:
+        print(get_db_path())
+        return
+
     with sqlite_db() as db_conn:
         row = db_conn.execute("SELECT * FROM running_activity").fetchone()
 
@@ -512,6 +514,7 @@ def main(args: list[str] | None = None) -> int:
     parser.add_argument(
         "-v", "--version", action="version", version=f"qz version {__version__}"
     )
+    parser.add_argument("--locate", action="store_true", help=argparse.SUPPRESS)
     parser.set_defaults(func=root_cmd)
 
     subparsers = parser.add_subparsers(title="subcommands", metavar="<command>")
