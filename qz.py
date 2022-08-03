@@ -1,20 +1,21 @@
 import argparse
-import contextlib
 import csv
 import ctypes
 import datetime
 import importlib.metadata
 import itertools
 import os
-import pathlib
 import re
 import sqlite3
 import sys
 import textwrap
 import uuid
 from collections.abc import Iterator
+from contextlib import contextmanager
+from pathlib import Path
 from typing import NoReturn
 
+# this is very, very slow...
 __version__ = importlib.metadata.version("qz")
 
 
@@ -23,7 +24,7 @@ def fatal(err: str | Exception) -> NoReturn:
     sys.exit(1)
 
 
-def _db_path() -> pathlib.Path:
+def get_db_path() -> Path:
     """Get path to data store: `QZ_DB` env var or platform user data dir.
 
     See <https://github.com/platformdirs/platformdirs>.
@@ -32,11 +33,11 @@ def _db_path() -> pathlib.Path:
     env_path = os.getenv("QZ_DB", "")
 
     if env_path.strip():
-        return pathlib.Path(env_path)
+        return Path(env_path)
 
     # user data dir
     if sys.platform == "darwin":
-        base_path = pathlib.Path("~/Library/Application Support").expanduser()
+        base_path = Path("~/Library/Application Support").expanduser()
 
     elif sys.platform == "win32":
         # UNTESTED
@@ -50,19 +51,19 @@ def _db_path() -> pathlib.Path:
             if windll.kernel32.GetShortPathNameW(buf.value, buf2, 1024):
                 buf = buf2
 
-        base_path = pathlib.Path(buf.value)
+        base_path = Path(buf.value)
 
     else:
         xdg_path = os.getenv("XDG_DATA_HOME", "")
         if xdg_path.strip():
-            base_path = pathlib.Path(xdg_path)
+            base_path = Path(xdg_path)
         else:
-            base_path = pathlib.Path("~/.local/share").expanduser()
+            base_path = Path("~/.local/share").expanduser()
 
     return base_path / "qz" / "store.db"
 
 
-def _init_db(f: pathlib.Path) -> sqlite3.Connection:
+def _init_db(f: Path) -> sqlite3.Connection:
     """Create database and return a connection.
 
     Partial expression index trick to constrain a single NULL:
@@ -159,7 +160,7 @@ def _init_db(f: pathlib.Path) -> sqlite3.Connection:
     return conn
 
 
-@contextlib.contextmanager
+@contextmanager
 def sqlite_db() -> Iterator[sqlite3.Connection]:
     """Create and close an SQLite database connection.
 
@@ -173,7 +174,7 @@ def sqlite_db() -> Iterator[sqlite3.Connection]:
     Can use something like `conn.set_trace_callback(print)`
     to faciliate statement debugging during development.
     """
-    f = _db_path()
+    f = get_db_path()
     if not f.exists():
         conn = _init_db(f)
     else:
