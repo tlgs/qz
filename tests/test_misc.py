@@ -1,4 +1,3 @@
-import sys
 from pathlib import Path
 from unittest.mock import patch
 
@@ -11,21 +10,13 @@ from qz import get_db_path, main
     ("platform", "expected"),
     [
         pytest.param("linux", "~/.local/share/qz/store.db", id="linux"),
-        pytest.param(
-            "win32",
-            "",
-            marks=pytest.mark.skipif(
-                sys.platform != "win32", reason="only runs on windows"
-            ),
-            id="win32",
-        ),
+        pytest.param("win32", "~/AppData/Local/qz/store.db", id="win32"),
         pytest.param(
             "darwin", "~/Library/Application Support/qz/store.db", id="darwin"
         ),
     ],
 )
 def test_default_db_path(platform, expected):
-    # UNTESTED FOR WINDOWS
     expected_path = Path(expected).expanduser()
 
     with patch.dict("os.environ") as patched_env, patch("sys.platform", platform):

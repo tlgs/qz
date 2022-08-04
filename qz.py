@@ -1,6 +1,5 @@
 import argparse
 import csv
-import ctypes
 import datetime
 import itertools
 import os
@@ -35,30 +34,19 @@ def get_db_path() -> Path:
 
     # user data dir
     if sys.platform == "darwin":
-        base_path = Path("~/Library/Application Support").expanduser()
+        base_path = Path("~/Library/Application Support")
 
     elif sys.platform == "win32":
-        # UNTESTED
-
-        buf = ctypes.create_unicode_buffer(1024)
-        windll = ctypes.windll
-        windll.shell32.SHGetFolderPathW(None, 28, None, 0, buf)
-
-        if any(ord(c) > 255 for c in buf):
-            buf2 = ctypes.create_unicode_buffer(1024)
-            if windll.kernel32.GetShortPathNameW(buf.value, buf2, 1024):
-                buf = buf2
-
-        base_path = Path(buf.value)
+        base_path = Path("~/AppData/Local")
 
     else:
         xdg_path = os.getenv("XDG_DATA_HOME", "")
         if xdg_path.strip():
             base_path = Path(xdg_path)
         else:
-            base_path = Path("~/.local/share").expanduser()
+            base_path = Path("~/.local/share")
 
-    return base_path / "qz" / "store.db"
+    return base_path.expanduser() / "qz" / "store.db"
 
 
 def _init_db(f: Path) -> sqlite3.Connection:
