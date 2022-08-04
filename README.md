@@ -1,12 +1,10 @@
 # qz
 
-qz is a _really_ minimal time tracking CLI application.
+qz is a barebones time-tracking CLI application:
 
-Here's a quick overview:
-
-- single Python module (~500 SLOC); no third-party dependencies
-- simple SQLite database to manage state
-- minimal command interface to record and log activities
+  - single module in idiomatic Python (~500 SLOC); no third-party dependencies
+  - simple SQLite database to manage state
+  - minimal command interface to record and log activities
 
 ## Installation
 
@@ -52,7 +50,7 @@ There is not much metadata that can be associated with an activity -
 there's `message` (i.e. description) and `project`.
 It should be pretty straightforward what these mean.
 
-Any datetime supplied by the user should be in a format that is parseable by
+Any datetime supplied should be in a format that is parseable by
 [`datetime.datetime.fromisoformat`](https://docs.python.org/3/library/datetime.html#datetime.datetime.fromisoformat)
 or [`datetime.time.fromisoformat`](https://docs.python.org/3/library/datetime.html#datetime.time.fromisoformat).
 The current date will be used when only the time is provided.
@@ -61,16 +59,18 @@ When it comes to importing, only [toggl](https://track.toggl.com) is supported
 at this time.
 
 By design, there is no support for: activities in the future,
-overlapping activities, or timezones (everything is `localtime`).
+overlapping activities, or timezones.
+
+The database location can be configured using the `QZ_DB` environment variable.
+You can run `qz --locate` to track down the database in use.
 
 ### What about X?
 
-Unlike most other tools in the space, the storage layer is not hidden from the user;
-it's a very simple SQLite database in a sane location (whatever `QZ_DB` is set to or
-your platform's defaults).
+Unlike most other similar tools, the storage layer is not hidden away
+as an implementation detail: it's a very simple SQLite database in a sane location.
 
-If you need to do something that's not exposed by the CLI API, **you should** go ahead
-take advantage of SQLite's ease of use.
+If you need to do something that's not exposed by the command interface,
+**you should** go ahead and take advantage of SQLite's ease of use.
 Complex queries or dynamic batch insertions? `SELECT` and `INSERT`.
 
 ## Development
