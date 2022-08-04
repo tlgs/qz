@@ -15,9 +15,20 @@ def pytest_make_parametrize_id(config, val, argname):
     return None
 
 
+def pytest_collection_modifyitems(session, config, items):
+    order = ["misc", "root", "start", "stop", "add", "log", "delete", "import"]
+
+    def sort_func(pytest_item):
+        p, *_ = pytest_item.reportinfo()
+        cmd = p.stem[5:]
+        return order.index(cmd)
+
+    items.sort(key=sort_func)
+
+
 @pytest.fixture(scope="session")
 def frozen_now():
-    return datetime.datetime(2022, 7, 30, 8, 0, 0)
+    return datetime.datetime(2022, 7, 30, 9, 0, 0)
 
 
 @pytest.fixture

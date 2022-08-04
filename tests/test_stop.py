@@ -12,7 +12,7 @@ from qz import main, sqlite_db
     [
         ["stop"],
         ["stop", "-m", "not kerbal gaming"],
-        ["stop", "--at", "2022-07-30 09:45"],
+        ["stop", "--at", "2022-07-30 08:55"],
         ["stop", "--at", "13:37"],
     ],
 )
@@ -61,6 +61,9 @@ def test_not_running(capsys, stopped_db, args):
     ],
 )
 def test_bad(running_db, args):
+    # TODO: split these into `bad metadata`, `bad datetime`,
+    #       `bad option combination`, `datetime before start`
+
     with pytest.raises(SystemExit) as exc_info:
         main(args)
 

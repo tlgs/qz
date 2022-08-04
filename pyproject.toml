@@ -27,8 +27,8 @@ run.source = ["qz"]
 report.show_missing = true
 report.fail_under = 80
 report.exclude_lines = [
-  "pragma: no cover",
-  "if __name__ == .__main__.:",
+  '# pragma: no cover\b',
+  'if __name__ == "__main__":$',
 ]
 
 
