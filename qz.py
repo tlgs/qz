@@ -9,10 +9,10 @@ import sqlite3
 import sys
 import textwrap
 import uuid
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from pathlib import Path
-from typing import NoReturn
+from typing import Any, NoReturn, Optional, Union
 
 __version__ = "0.1.0-alpha"
 
@@ -208,10 +208,6 @@ def parse_user_datetime(s: str) -> datetime.datetime:
 
 
 def root_cmd(args: argparse.Namespace) -> None:
-    if args.locate:
-        print(get_db_path())
-        return
-
     with sqlite_db() as db_conn:
         row = db_conn.execute("SELECT * FROM running_activity").fetchone()
 
@@ -501,6 +497,39 @@ class SubcommandHelpFormatter(argparse.RawDescriptionHelpFormatter):
         return parts
 
 
+class LocateAction(argparse.Action):
+    """Custom action that mimics --help/--version behaviour for --locate.
+
+    See source for argparse._VersionAction:
+    <https://github.com/python/cpython/blob/3.10/Lib/argparse.py>
+    """
+
+    def __init__(
+        self,
+        option_strings: Sequence[str],
+        dest: str = argparse.SUPPRESS,
+        default: str = argparse.SUPPRESS,
+        help: Optional[str] = "show the location of database in use and exit",
+    ):
+        super().__init__(
+            option_strings=option_strings,
+            dest=dest,
+            default=default,
+            nargs=0,
+            help=help,
+        )
+
+    def __call__(
+        self,
+        parser: argparse.ArgumentParser,
+        namespace: argparse.Namespace,
+        values: Union[str, Sequence[Any], None],
+        option_string: Optional[str] = None,
+    ) -> NoReturn:
+        print(get_db_path())
+        parser.exit()
+
+
 def main(args: list[str] | None = None) -> int:
     parser = ArgumentParser(
         description=textwrap.dedent(
@@ -514,7 +543,7 @@ def main(args: list[str] | None = None) -> int:
     parser.add_argument(
         "-v", "--version", action="version", version=f"qz version {__version__}"
     )
-    parser.add_argument("--locate", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--locate", action=LocateAction, help=argparse.SUPPRESS)
     parser.set_defaults(func=root_cmd)
 
     subparsers = parser.add_subparsers(title="subcommands", metavar="<command>")
