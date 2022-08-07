@@ -492,20 +492,8 @@ class LocateAction(argparse.Action):
     <https://github.com/python/cpython/blob/3.10/Lib/argparse.py>
     """
 
-    def __init__(
-        self,
-        option_strings: Sequence[str],
-        dest: str = argparse.SUPPRESS,
-        default: str = argparse.SUPPRESS,
-        help: Optional[str] = "show the location of database in use and exit",
-    ):
-        super().__init__(
-            option_strings=option_strings,
-            dest=dest,
-            default=default,
-            nargs=0,
-            help=help,
-        )
+    def __init__(self, option_strings: Sequence[str], dest: str):
+        super().__init__(option_strings, dest, nargs=0, help=argparse.SUPPRESS)
 
     def __call__(
         self,
@@ -515,7 +503,7 @@ class LocateAction(argparse.Action):
         option_string: Optional[str] = None,
     ) -> NoReturn:
         print(get_db_path())
-        parser.exit()
+        sys.exit(0)
 
 
 def main(args: list[str] | None = None) -> int:
@@ -531,7 +519,7 @@ def main(args: list[str] | None = None) -> int:
     parser.add_argument(
         "-v", "--version", action="version", version=f"qz version {__version__}"
     )
-    parser.add_argument("--locate", action=LocateAction, help=argparse.SUPPRESS)
+    parser.add_argument("--locate", action=LocateAction)
     parser.set_defaults(func=root_cmd)
 
     subparsers = parser.add_subparsers(title="subcommands", metavar="<command>")
