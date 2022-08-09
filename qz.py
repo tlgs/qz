@@ -166,12 +166,11 @@ def sqlite_db() -> Iterator[sqlite3.Connection]:
     else:
         conn = sqlite3.connect(f)
 
+    try:
         # <https://www.sqlite.org/pragma.html#pragma_integrity_check>
         result, *_ = conn.execute("PRAGMA integrity_check").fetchone()
-        if result != "ok":
-            conn.close()
-            fatal("database did not pass integrity check")
-    try:
+        assert result == "ok", "database did not pass integrity check"
+
         yield conn
 
         # let's make sure we only commit if no exception was raised:
