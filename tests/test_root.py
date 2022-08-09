@@ -48,16 +48,6 @@ def test_locate_message(capsys, mock_env_db, args):
     assert capsys.readouterr() == (expected_stdout, expected_stderr)
 
 
-def test_first_run(capsys, mock_env_db):
-    main([])
-
-    db_path = os.getenv("QZ_DB")
-
-    expected_stdout = f"init db at {db_path}\nno tracking ongoing\n"
-    expected_stderr = ""
-    assert capsys.readouterr() == (expected_stdout, expected_stderr)
-
-
 def test_nothing_running(capsys, stopped_db):
     main([])
 

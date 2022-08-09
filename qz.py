@@ -142,7 +142,6 @@ def _init_db(f: Path) -> sqlite3.Connection:
     with conn:
         conn.executescript(raw_script)
 
-    print("init db at", f.resolve())
     return conn
 
 

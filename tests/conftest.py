@@ -50,9 +50,6 @@ def stopped_db(capsys, mock_env_db):
     with sqlite_db() as conn:
         conn.executemany("INSERT INTO activities VALUES (?, ?, ?, ?, ?)", data)
 
-    # capture the 'init db at {}' message
-    capsys.readouterr()
-
 
 @pytest.fixture
 def running_db(stopped_db, frozen_now):
