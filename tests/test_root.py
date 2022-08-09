@@ -1,5 +1,6 @@
 import datetime
 import os
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -29,6 +30,20 @@ def test_version_message(capsys, args):
     assert exc_info.value.code == 0
 
     expected_stdout = f"qz version {qz_version}\n"
+    expected_stderr = ""
+    assert capsys.readouterr() == (expected_stdout, expected_stderr)
+
+
+@pytest.mark.parametrize("args", [["--locate"], ["--locate", "import"]])
+def test_locate_message(capsys, mock_env_db, args):
+    with pytest.raises(SystemExit) as exc_info:
+        main(args)
+
+    assert exc_info.value.code == 0
+
+    db_path = Path(os.getenv("QZ_DB")).resolve()
+
+    expected_stdout = f"{db_path}\n"
     expected_stderr = ""
     assert capsys.readouterr() == (expected_stdout, expected_stderr)
 
