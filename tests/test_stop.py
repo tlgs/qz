@@ -34,7 +34,13 @@ def test_good(capsys, running_db, frozen_now, args):
     assert captured_err == ""
 
 
-@pytest.mark.parametrize("args", [["stop"], ["stop", "--discard"]])
+@pytest.mark.parametrize(
+    "args",
+    [
+        ["stop"],
+        ["stop", "--discard"],
+    ],
+)
 def test_not_running(capsys, stopped_db, args):
     with pytest.raises(SystemExit) as exc_info:
         main(args)
@@ -52,18 +58,45 @@ def test_not_running(capsys, stopped_db, args):
         ["stop", "--message"],
         ["stop", "-m", ""],
         ["stop", "--project", ""],
+    ],
+)
+def test_bad_metadata(running_db, args):
+    with pytest.raises(SystemExit) as exc_info:
+        main(args)
+
+    assert exc_info.value.code == 1
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
         ["stop", "--at", "##"],
         ["stop", "--at", "73:31"],
         ["stop", "--at", "+05:03"],
-        ["stop", "--at", "3022-07-30 08:00"],
+    ],
+)
+def test_bad_datetime(running_db, args):
+    with pytest.raises(SystemExit) as exc_info:
+        main(args)
+
+    assert exc_info.value.code == 1
+
+
+def test_future_datetime(running_db):
+    with pytest.raises(SystemExit) as exc_info:
+        main(["stop", "--at", "3022-07-30 08:00"])
+
+    assert exc_info.value.code == 1
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
         ["stop", "--discard", "--at", "23:59"],
         ["stop", "-m", "kerbal gaming", "--discard"],
     ],
 )
-def test_bad(running_db, args):
-    # TODO: split these into `bad metadata`, `bad datetime`,
-    #       `bad option combination`, `datetime before start`
-
+def test_bad_option_combination(running_db, args):
     with pytest.raises(SystemExit) as exc_info:
         main(args)
 

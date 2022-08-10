@@ -10,7 +10,14 @@ from qz import __version__ as qz_version
 from qz import main
 
 
-@pytest.mark.parametrize("args", [["-h"], ["--help"], ["--help", "add"]])
+@pytest.mark.parametrize(
+    "args",
+    [
+        ["-h"],
+        ["--help"],
+        ["--help", "add"],
+    ],
+)
 def test_help_message(capsys, args):
     with patch("sys.argv", ["qz"]), pytest.raises(SystemExit) as exc_info:
         main(args)
@@ -22,7 +29,13 @@ def test_help_message(capsys, args):
     assert captured_err == ""
 
 
-@pytest.mark.parametrize("args", [["--version"], ["--version", "stop"]])
+@pytest.mark.parametrize(
+    "args",
+    [
+        ["--version"],
+        ["--version", "stop"],
+    ],
+)
 def test_version_message(capsys, args):
     with pytest.raises(SystemExit) as exc_info:
         main(args)
@@ -34,7 +47,13 @@ def test_version_message(capsys, args):
     assert capsys.readouterr() == (expected_stdout, expected_stderr)
 
 
-@pytest.mark.parametrize("args", [["--locate"], ["--locate", "import"]])
+@pytest.mark.parametrize(
+    "args",
+    [
+        ["--locate"],
+        ["--locate", "import"],
+    ],
+)
 def test_locate_message(capsys, mock_env_db, args):
     with pytest.raises(SystemExit) as exc_info:
         main(args)

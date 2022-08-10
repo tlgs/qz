@@ -44,15 +44,33 @@ def test_good(capsys, stopped_db, frozen_now, args):
         ["start", "-m"],
         ["start", "-m", ""],
         ["start", "--project", ""],
+    ],
+)
+def test_bad_metadata(stopped_db, args):
+    with pytest.raises(SystemExit) as exc_info:
+        main(args)
+
+    assert exc_info.value.code == 1
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
         ["start", "--at", "?!"],
         ["start", "--at", "30:05"],
         ["start", "--at", "-01:05"],
-        ["start", "--at", "3022-07-30 08:00"],
     ],
 )
-def test_bad(stopped_db, args):
+def test_bad_datetime(stopped_db, args):
     with pytest.raises(SystemExit) as exc_info:
         main(args)
+
+    assert exc_info.value.code == 1
+
+
+def test_future_datetime(stopped_db):
+    with pytest.raises(SystemExit) as exc_info:
+        main(["start", "--at", "3022-07-30 08:00"])
 
     assert exc_info.value.code == 1
 

@@ -39,14 +39,38 @@ def test_good(capsys, stopped_db, frozen_now, args):
     [
         ["add"],
         ["add", "10:00"],
+    ],
+)
+def test_missing_datetimes(stopped_db, args):
+    with pytest.raises(SystemExit) as exc_info:
+        main(args)
+
+    assert exc_info.value.code == 1
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
         ["add", "10:00", "10:65"],
         ["add", "09:99", "10:55"],
+    ],
+)
+def test_bad_datetimes(stopped_db, args):
+    with pytest.raises(SystemExit) as exc_info:
+        main(args)
+
+    assert exc_info.value.code == 1
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
         ["add", "10:00", "10:55", "-m"],
         ["add", "10:00", "10:55", "-m", ""],
         ["add", "10:00", "10:55", "-p", ""],
     ],
 )
-def test_bad(stopped_db, args):
+def test_bad_metadata(stopped_db, args):
     with pytest.raises(SystemExit) as exc_info:
         main(args)
 
