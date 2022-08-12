@@ -2,13 +2,18 @@
 name = "qz"
 description = "Minimal time tracking CLI app"
 readme = "README.md"
-license = { file = "UNLICENSE" }
+license = "Unlicense"
 authors = [
-  { name = "Tiago Seabra", email = "tlgs@users.noreply.github.com" }
+  { name = "Tiago Seabra", email = "tlgs@users.noreply.github.com" },
+]
+classifiers = [
+  "License :: OSI Approved :: The Unlicense (Unlicense)",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
 ]
 dynamic = ["version"]
 
-urls = { Source = "https://github.com/tlgs/qz" }
+urls = { Homepage = "https://github.com/tlgs/qz" }
 scripts = { qz = "qz:main" }
 
 [project.optional-dependencies]
@@ -33,10 +38,10 @@ report.exclude_lines = [
 
 
 [tool.hatch]
-version.source = "vcs"
+version.path = "qz.py"
 build.targets.wheel.only-include = ["qz.py"]
 
 
 [build-system]
-requires = ["hatchling", "hatch-vcs"]
+requires = ["hatchling"]
 build-backend = "hatchling.build"
