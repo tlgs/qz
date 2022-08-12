@@ -11,8 +11,8 @@ qz is a barebones time-tracking CLI application:
 On Arch Linux:
 
 ```
-git clone git@github.com:tlgs/qz.git
-cd qz
+git clone --depth=1 https://github.com/tlgs/qz.git
+cd qz/build
 makepkg -csri
 ```
 
