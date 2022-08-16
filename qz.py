@@ -33,18 +33,19 @@ def get_db_path() -> Path:
         return Path(env_path).resolve()
 
     # user data dir
-    if sys.platform == "darwin":
-        base_path = Path("~/Library/Application Support")
+    match sys.platform:
+        case "darwin":
+            base_path = Path("~/Library/Application Support")
 
-    elif sys.platform == "win32":
-        base_path = Path("~/AppData/Local")
+        case "win32":
+            base_path = Path("~/AppData/Local")
 
-    else:
-        xdg_path = os.getenv("XDG_DATA_HOME", "")
-        if xdg_path.strip():
-            base_path = Path(xdg_path)
-        else:
-            base_path = Path("~/.local/share")
+        case _:
+            xdg_path = os.getenv("XDG_DATA_HOME", "")
+            if xdg_path.strip():
+                base_path = Path(xdg_path)
+            else:
+                base_path = Path("~/.local/share")
 
     return base_path.expanduser() / "qz" / "store.db"
 
@@ -157,7 +158,7 @@ def sqlite_db() -> Iterator[sqlite3.Connection]:
     - <https://eli.thegreenplace.net/2009/06/12/safely-using-destructors-in-python>
 
     Can use something like `conn.set_trace_callback(print)`
-    to faciliate statement debugging during development.
+    to facilitate statement debugging during development.
     """
     f = get_db_path()
     if not f.exists():
@@ -454,6 +455,10 @@ def import_cmd(args: argparse.Namespace) -> None:
         print(id_)
 
 
+def status_cmd(args: argparse.Namespace) -> None:
+    root_cmd(argparse.Namespace())
+
+
 class ArgumentParser(argparse.ArgumentParser):
     """Patched argparse.ArgumentParser to customize error handling.
 
@@ -504,13 +509,12 @@ class LocateAction(argparse.Action):
         sys.exit(0)
 
 
-def main(args: list[str] | None = None) -> int:
+def main(args: Sequence[str] | None = None) -> int:
     parser = ArgumentParser(
-        description=textwrap.dedent(
-            """\
-            Minimal time tracking CLI app.
-
-            Run with no arguments to get current tracking status."""
+        description=(
+            "Barebones time tracking CLI app.\n"
+            "\n"
+            "Run with no arguments to get current tracking status."
         ),
         formatter_class=SubcommandHelpFormatter,
     )
@@ -562,7 +566,7 @@ def main(args: list[str] | None = None) -> int:
     )
     parser_add.add_argument("start", help="start datetime", metavar="<start>")
     parser_add.add_argument("stop", help="stop datetime", metavar="<stop>")
-    parser_add.add_argument("-m", "--message", help="set messsage", metavar="<msg>")
+    parser_add.add_argument("-m", "--message", help="set message", metavar="<msg>")
     parser_add.add_argument("-p", "--project", help="set project", metavar="<proj>")
     parser_add.set_defaults(func=add_cmd)
 
@@ -618,6 +622,11 @@ def main(args: list[str] | None = None) -> int:
     )
     parser_import.add_argument("file", help="tool-specific data file", metavar="<file>")
     parser_import.set_defaults(func=import_cmd)
+
+    parser_status = subparsers.add_parser(
+        "status", description="Alias to root command without extra options."
+    )
+    parser_status.set_defaults(func=status_cmd)
 
     parsed_args = parser.parse_args(args)
     parsed_args.func(parsed_args)
