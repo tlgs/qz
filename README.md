@@ -29,7 +29,7 @@ Running `qz -h` should give you all the information you need to get started:
 ```
 usage: qz [-h] [-v] <command> ...
 
-Minimal time tracking CLI app.
+Barebones time-tracking CLI app.
 
 Run with no arguments to get current tracking status.
 
@@ -58,7 +58,7 @@ The current date will be used when only the time is provided.
 When it comes to importing, only [toggl](https://track.toggl.com) is supported
 at this time.
 
-By design, there is no support for: activities in the future,
+By design, there is no support for activities in the future,
 overlapping activities, or timezones.
 
 The database location can be configured using the `QZ_DB` environment variable.
@@ -70,7 +70,7 @@ Unlike most other similar tools, the storage layer is not hidden away
 as an implementation detail: it's a very simple SQLite database in a sane location.
 
 If you need to do something that's not exposed by the command interface,
-**you should** go ahead and take advantage of SQLite's ease of use.
+you should go ahead and take advantage of SQLite's ease of use.
 Complex queries or dynamic batch insertions? `SELECT` and `INSERT`.
 
 ## Development
