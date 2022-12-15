@@ -322,7 +322,7 @@ def log_cmd(args: argparse.Namespace) -> None:
         )
     else:
         since_dt = datetime.datetime.combine(
-            datetime.date.today() - datetime.timedelta(days=7),
+            datetime.date.today() - datetime.timedelta(days=3),
             datetime.time.min,
         )
 
@@ -347,8 +347,6 @@ def log_cmd(args: argparse.Namespace) -> None:
             ORDER BY
               start_dt DESC"""
         )
-        if not (args.today or args.since or args.until):
-            stmt += "\nLIMIT 20"
 
         rows = db_conn.execute(stmt, (since_dt, until_dt)).fetchall()
 
@@ -512,7 +510,7 @@ class LocateAction(argparse.Action):
 def main(args: Sequence[str] | None = None) -> int:
     parser = ArgumentParser(
         description=(
-            "Barebones time tracking CLI app.\n"
+            "Barebones time-tracking CLI app.\n"
             "\n"
             "Run with no arguments to get current tracking status."
         ),
@@ -581,7 +579,7 @@ def main(args: Sequence[str] | None = None) -> int:
             """\
             Show activity logs.
 
-            By default only shows the last 20 activities of the past 7 days.
+            By default only shows activities of the past 3 days.
             """
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
