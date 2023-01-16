@@ -10,7 +10,7 @@ from qz import sqlite_db
 
 def pytest_make_parametrize_id(config, val, argname):
     if argname == "args":
-        cleaned_args = [f'"{v}"' if (" " in v or v == "") else v for v in val]
+        cleaned_args = [f"{v!r}" if (" " in v or v == "") else v for v in val]
         return " ".join(cleaned_args)
 
     return None

@@ -33,5 +33,5 @@ def test_wrong_subcommand(capsys, args):
     assert exc_info.value.code == 1
 
     expected_stdout = ""
-    expected_stderr = f"qz: '{args[0]}' is not a qz command\n"
+    expected_stderr = f"qz: {args[0]!r} is not a qz command\n"
     assert capsys.readouterr() == (expected_stdout, expected_stderr)

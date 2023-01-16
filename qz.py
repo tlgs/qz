@@ -394,7 +394,7 @@ def log_cmd(args: argparse.Namespace) -> None:
 
 def delete_cmd(args: argparse.Namespace) -> None:
     if len(args.activity_uuid) < 4:
-        fatal(f"ambiguous uuid '{args.activity_uuid}'")
+        fatal(f"ambiguous uuid {args.activity_uuid!r}")
 
     with sqlite_db() as db_conn:
         expr = args.activity_uuid + "%"
@@ -404,11 +404,11 @@ def delete_cmd(args: argparse.Namespace) -> None:
 
         match len(rows):
             case 0:
-                fatal(f"could not find matching uuid '{args.activity_uuid}'")
+                fatal(f"could not find matching uuid {args.activity_uuid!r}")
             case 1:
                 ...
             case _:
-                fatal(f"ambiguous uuid '{args.activity_uuid}': use the full identifier")
+                fatal(f"ambiguous uuid {args.activity_uuid!r}: use the full identifier")
 
         id_, *_ = rows[0]
         db_conn.execute("DELETE FROM activities WHERE uuid = ?", (id_,))
@@ -467,7 +467,7 @@ class ArgumentParser(argparse.ArgumentParser):
     def error(self, message: str) -> NoReturn:
         pat = re.compile(r"argument <command>: invalid choice: '(.+?)'")
         if m := pat.match(message):
-            message = f"'{m.group(1)}' is not a qz command"
+            message = f"{m.group(1)!r} is not a qz command"
 
         fatal(message)
 
