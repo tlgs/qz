@@ -23,6 +23,9 @@ dev = [
   "pytest",
 ]
 
+[tool.ruff.lint]
+select = ["F", "E", "W", "I", "N", "UP", "B"]
+ignore = ["W191", "E111", "E114", "E117", "E501"]
 
 [tool.coverage]
 run.command_line = "-m pytest"
@@ -36,11 +39,9 @@ report.exclude_lines = [
   'if __name__ == "__main__":$',
 ]
 
-
 [tool.hatch]
 version.path = "qz.py"
 build.targets.wheel.only-include = ["qz.py"]
-
 
 [build-system]
 requires = ["hatchling"]
