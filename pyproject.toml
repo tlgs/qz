@@ -2,14 +2,9 @@
 name = "qz"
 description = "Minimal time tracking CLI app"
 readme = "README.md"
-license = "Unlicense"
+license = "0BSD"
 authors = [
   { name = "Tiago Seabra", email = "tlgs@users.noreply.github.com" },
-]
-classifiers = [
-  "License :: OSI Approved :: The Unlicense (Unlicense)",
-  "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3 :: Only",
 ]
 dynamic = ["version"]
 
