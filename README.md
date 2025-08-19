@@ -6,22 +6,6 @@ qz is a barebones time-tracking CLI application:
   - simple SQLite database to manage state
   - minimal command interface to record and log activities
 
-## Installation
-
-On Arch Linux:
-
-```
-git clone --depth=1 https://github.com/tlgs/qz.git
-cd qz/build
-makepkg -csri
-```
-
-Through pip (VCS support):
-
-```
-pip install git+https://github.com/tlgs/qz.git
-```
-
 ## Usage
 
 Running `qz -h` should give you all the information you need to get started:
