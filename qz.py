@@ -13,7 +13,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, NoReturn, Optional, Union
 
-__version__ = "0.1.0-alpha"
+__version__ = "0.1.0"
 
 
 def fatal(err: str | Exception) -> NoReturn:

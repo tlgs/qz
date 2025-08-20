@@ -3,13 +3,8 @@ name = "qz"
 description = "Minimal time tracking CLI app"
 readme = "README.md"
 license = "0BSD"
-authors = [
-  { name = "Tiago Seabra", email = "tlgs@users.noreply.github.com" },
-]
-dynamic = ["version"]
-
-urls = { Homepage = "https://github.com/tlgs/qz" }
 scripts = { qz = "qz:main" }
+dynamic = ["version"]
 
 [project.optional-dependencies]
 dev = [
@@ -17,6 +12,10 @@ dev = [
   "pre-commit",
   "pytest",
 ]
+
+[tool.setuptools]
+py-modules = ["qz"]
+dynamic.version = { attr = "qz.__version__" }
 
 [tool.ruff.lint]
 select = ["F", "E", "W", "I", "N", "UP", "B"]
@@ -34,10 +33,6 @@ report.exclude_lines = [
   'if __name__ == "__main__":$',
 ]
 
-[tool.hatch]
-version.path = "qz.py"
-build.targets.wheel.only-include = ["qz.py"]
-
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
