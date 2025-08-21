@@ -27,7 +27,6 @@ subcommands:
     add          add a parametrized activity
     log          show activity logs
     delete       delete an activity
-    import       import activities from other tools
 ```
 
 There is not much metadata that can be associated with an activity -
@@ -38,9 +37,6 @@ Any datetime supplied should be in a format that is parseable by
 [`datetime.datetime.fromisoformat`](https://docs.python.org/3/library/datetime.html#datetime.datetime.fromisoformat)
 or [`datetime.time.fromisoformat`](https://docs.python.org/3/library/datetime.html#datetime.time.fromisoformat).
 The current date will be used when only the time is provided.
-
-When it comes to importing, only [toggl](https://track.toggl.com) is supported
-at this time.
 
 By design, there is no support for activities in the future,
 overlapping activities, or timezones.

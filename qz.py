@@ -1,5 +1,4 @@
 import argparse
-import csv
 import datetime
 import itertools
 import os
@@ -416,43 +415,6 @@ def delete_cmd(args: argparse.Namespace) -> None:
     print(id_)
 
 
-def import_cmd(args: argparse.Namespace) -> None:
-    to_insert = []
-
-    # no need to parse args.tool as we're only supporting 'toggl'
-    try:
-        with open(args.file, newline="") as csv_file:
-            for row in csv.DictReader(csv_file):
-                message = row["Description"]
-                project = row["Project"]
-                start_dt = datetime.datetime.combine(
-                    datetime.date.fromisoformat(row["Start date"]),
-                    datetime.time.fromisoformat(row["Start time"]),
-                )
-                stop_dt = datetime.datetime.combine(
-                    datetime.date.fromisoformat(row["End date"]),
-                    datetime.time.fromisoformat(row["End time"]),
-                )
-
-                id_ = str(uuid.uuid4())
-                to_insert.append((id_, message, project, start_dt, stop_dt))
-
-    except FileNotFoundError:
-        fatal(f"no such file `{args.file}`")
-
-    with sqlite_db() as db_conn:
-        try:
-            db_conn.executemany(
-                "INSERT INTO activities VALUES (?, ?, ?, ?, ?)",
-                to_insert,
-            )
-        except sqlite3.IntegrityError as e:
-            fatal(e)
-
-    for id_, *_ in to_insert:
-        print(id_)
-
-
 def status_cmd(args: argparse.Namespace) -> None:
     root_cmd(argparse.Namespace())
 
@@ -604,22 +566,6 @@ def main(args: Sequence[str] | None = None) -> int:
     )
     parser_delete.add_argument("activity_uuid", metavar="<activity_uuid>")
     parser_delete.set_defaults(func=delete_cmd)
-
-    parser_import = subparsers.add_parser(
-        "import",
-        help="import activities from other tools",
-        description="Import activities from other tools.",
-    )
-    parser_import.add_argument(
-        "-t",
-        "--tool",
-        choices=["toggl"],
-        required=True,
-        help="specify tool (one of: toggl)",
-        metavar="<tool>",
-    )
-    parser_import.add_argument("file", help="tool-specific data file", metavar="<file>")
-    parser_import.set_defaults(func=import_cmd)
 
     parser_status = subparsers.add_parser(
         "status", description="Alias to root command without extra options."
