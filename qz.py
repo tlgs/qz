@@ -20,6 +20,11 @@ def fatal(err: str | Exception) -> NoReturn:
     sys.exit(1)
 
 
+def adapt_datetime_iso(dt: datetime.datetime) -> str:
+    """Standard sqlite3 datetime.datetime adapter."""
+    return dt.replace(tzinfo=None).isoformat()
+
+
 def get_db_path() -> Path:
     """Get path to data store: `QZ_DB` env var or platform user data dir.
 
@@ -159,6 +164,8 @@ def sqlite_db() -> Iterator[sqlite3.Connection]:
     Can use something like `conn.set_trace_callback(print)`
     to facilitate statement debugging during development.
     """
+    sqlite3.register_adapter(datetime.datetime, adapt_datetime_iso)
+
     f = get_db_path()
     if not f.exists():
         conn = _init_db(f)
